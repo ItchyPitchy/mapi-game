@@ -143,8 +143,7 @@ export class MapScreen {
 						break
 					}
 					case 'enter': {
-						this.game.battleScene.activeBattle = this.map.currentStop.battle
-						this.game.battleScene.setupBattle()
+						this.game.battleScene.setupBattle(this.map.currentStop.battle)
 						this.game.state = 'BATTLE_SCENE'
 
 						break

@@ -18,7 +18,6 @@ export type Input =
 	| 'enter'
 
 export default class Game {
-	public players = [new Mami({ x: 0, y: 0 }), new Papi({ x: 0, y: 0 })]
 	public mapScreen = new MapScreen(this)
 	public pauseScreen = new PauseScreen(this)
 	public battleScene = new BattleScene(this)

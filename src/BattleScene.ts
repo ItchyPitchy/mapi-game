@@ -1,11 +1,13 @@
 import Game, { Input } from './game'
-import { Action, Battle } from './Battle/Battle'
+import { Battle } from './Battle/Battle'
 import { Battle1 } from './Battle/Battle1'
 import Player from './Entity/Player'
 import Foe from './Entity/Foe'
 import { Vector } from './Component/Vector'
 import { Health } from './Component/Health'
-import { Role, Skill, SkillType } from './Component/Role'
+import { Role, Skill } from './Component/Role'
+import Mami from './Entity/Mami'
+import Papi from './Entity/Papi'
 
 const skillsPerColumn = 2
 
@@ -28,31 +30,35 @@ type Scene = {
 	}
 }
 
-type State =
-	| {
-			name: 'ENEMY_TURN'
-			characterTurn: Foe
-	  }
-	| {
-			name: 'PLAYER_SELECT_SKILL'
-			characterTurn: Player
-			focusedSkill: Skill
-	  }
-	| {
-			name: 'PLAYER_SELECT_TARGET'
-			characterTurn: Player
-			focusedTarget: Foe | Player
-	  }
-	| {
-			name: 'SLEEP'
-	  }
+type State = {
+	name: 'ENEMY_TURN'
+	characterTurn: Foe
+} | {
+	name: 'PLAYER_SELECT_SKILL'
+	characterTurn: Player
+	focusedSkill: Skill
+} | {
+	name: 'PLAYER_SELECT_TARGET'
+	characterTurn: Player
+	selectedSkill: Skill
+	selectedTargets: Array<Foe | Player>
+	focusedTarget: Foe | Player
+} | {
+	name: 'ANIMATING_ACTION'
+	characterTurn: Player
+	selectedSkill: Skill
+	selectedTargets: Array<Foe | Player>
+	focusedTarget: Foe | Player
+} | {
+	name: 'SLEEP'
+}
 
-export class BattleScene {
-	scene: Scene | null = null
-	battles: Battle[] = [new Battle1()]
-	activeBattle: Battle | null = null
-	state: State = { name: 'SLEEP' }
-	animations: Animation[] = [
+export class BattleSystem {
+	public players = [new Mami({ x: 0, y: 0 }), new Papi({ x: 0, y: 0 })]
+	private battle: { active: Battle | null, queue: Battle[] } = { active: null, queue: [] }
+	private state: State = { name: 'SLEEP' }
+	private screen: { ratio: number, offset: { x: number, y: number }} | null = null
+	private animations: Animation[] = [
 		{
 			type: 'commence-battle',
 			durationMs: 1200,
@@ -62,32 +68,22 @@ export class BattleScene {
 
 	constructor(readonly game: Game) {}
 
-	setupBattle() {
-		if (!this.activeBattle) {
-			throw new Error(
-				'#setupBattle was called but activeBattle has not been set yet!'
-			)
-		}
+	setupBattle(battle: Battle) {
+		const screen = this.loadScreenBackground(battle.background)
 
-		this.loadScene()
-
-		if (this.scene === null) throw new Error('Failed loading scene!')
-
-		const battleFoes = this.activeBattle.getFoes()
-
-		const mapHeight = this.game.gameHeight - this.scene.offset.y * 2
+		const mapHeight = this.game.gameHeight - screen.offset.y * 2
 		const oneThirdMapHeight = mapHeight / 3
 		const maxCharacterPerColumn = 3
 
 		const foesInLastColumn =
-			battleFoes.length % maxCharacterPerColumn === 0
+			battle.foes.length % maxCharacterPerColumn === 0
 				? maxCharacterPerColumn
-				: battleFoes.length % maxCharacterPerColumn
+				: battle.foes.length % maxCharacterPerColumn
 
-		this.activeBattle.foes = battleFoes.map((foe, index) => {
+		battle.foes.forEach((foe, index) => {
 			const column = Math.floor(index / maxCharacterPerColumn) + 1
 			const isLastColumn =
-				Math.ceil(battleFoes.length / maxCharacterPerColumn) === column
+				Math.ceil(battle.foes.length / maxCharacterPerColumn) === column
 			const charactersInColumn = isLastColumn ? foesInLastColumn : 3
 			const heightPerCharacter = oneThirdMapHeight / charactersInColumn
 
@@ -100,18 +96,18 @@ export class BattleScene {
 				70 * column -
 				(index % maxCharacterPerColumn) * (60 / charactersInColumn)
 
-			return new foe.construct({ x: posX, y: posY }, foe.size, foe.hp)
+			foe.position = { x: posX, y: posY }
 		})
 
 		const playersInLastColumn =
-			this.game.players.length % maxCharacterPerColumn === 0
+			this.players.length % maxCharacterPerColumn === 0
 				? maxCharacterPerColumn
-				: this.game.players.length % maxCharacterPerColumn
+				: this.players.length % maxCharacterPerColumn
 
-		this.game.players.forEach((player, index) => {
+		this.players.forEach((player, index) => {
 			const column = Math.floor(index / maxCharacterPerColumn) + 1
 			const isLastColumn =
-				Math.ceil(this.game.players.length / maxCharacterPerColumn) === column
+				Math.ceil(this.players.length / maxCharacterPerColumn) === column
 			const charactersInColumn = isLastColumn ? playersInLastColumn : 3
 			const heightPerCharacter = oneThirdMapHeight / charactersInColumn
 
@@ -124,29 +120,30 @@ export class BattleScene {
 				70 * column -
 				(index % maxCharacterPerColumn) * (60 / charactersInColumn)
 
-			player.originPosition = { x: posX, y: posY }
 			player.position = { x: posX, y: posY }
 		})
+
+		this.battle.active = battle
 	}
 
-	loadScene() {
-		if (!this.activeBattle) return
-
-		const hRatio = this.game.gameWidth / this.activeBattle.background.width
-		const vRatio = this.game.gameHeight / this.activeBattle.background.height
+	loadScreenBackground(background: HTMLImageElement) {
+		const hRatio = this.game.gameWidth / background.width
+		const vRatio = this.game.gameHeight / background.height
 		const ratio = Math.min(hRatio, vRatio)
 		const offsetX =
-			(this.game.gameWidth - this.activeBattle.background.width * ratio) / 2
+			(this.game.gameWidth - background.width * ratio) / 2
 		const offsetY =
-			(this.game.gameHeight - this.activeBattle.background.height * ratio) / 2
+			(this.game.gameHeight - background.height * ratio) / 2
 
-		this.scene = {
+		this.screen = {
 			ratio,
 			offset: {
 				x: offsetX,
 				y: offsetY,
 			},
 		}
+
+		return this.screen
 	}
 
 	update(dt: number) {
@@ -286,14 +283,11 @@ export class BattleScene {
 								break
 							}
 							case 'enter': {
-								this.activeBattle.selectedAction = {
-									skill: this.state.focusedSkill,
-									targets: [],
-								}
-
 								this.state = {
 									name: 'PLAYER_SELECT_TARGET',
 									characterTurn: this.state.characterTurn,
+									selectedSkill: this.state.focusedSkill,
+									selectedTargets: [],
 									focusedTarget: this.activeBattle.foes[0],
 								}
 
@@ -424,16 +418,14 @@ export class BattleScene {
 								break
 							}
 							case 'enter': {
-								if (!this.activeBattle.selectedAction) {
-									console.log('#this.activeBattle.selectedAction is null!')
-									break
-								}
-
-								this.activeBattle.selectedAction.targets.push(
+								this.state.selectedTargets.push(
 									this.state.focusedTarget
 								)
 
-								this.executeAction(this.activeBattle.selectedAction)
+								if (this.state.selectedTargets.length >= 2) {
+									this.executeAction(this.state)
+								}
+
 
 								break
 							}
@@ -521,25 +513,12 @@ export class BattleScene {
 		return skillSet
 	}
 
-	executeAction(action: Action) {
-		if (!action.skill.unlocked) return
+	executeAction(action: Pick<Extract<State, { name: 'PLAYER_SELECT_TARGET' }>, 'selectedSkill' | 'selectedTargets'>) {
+		if (!action.selectedSkill.unlocked) return
 
-		switch (action.skill.type) {
-			case SkillType.DAMAGE: {
-				// TODO: Do not hardcode the hp loss&gain!
-				action.targets.forEach((target) => {
-					target.getComponent(Health).hp -= 40 // action.skill.
-				})
-				break
-			}
-			case SkillType.HEAL: {
-				// TODO: Do not hardcode the hp loss&gain!
-				action.targets.forEach((target) => {
-					target.getComponent(Health).hp += 40 // action.skill.
-				})
-				break
-			}
-		}
+		action.selectedTargets.forEach((target) => {
+			target.addComponents(action.selectedSkill.generateSkillEffect({ triggerInMs: 2000 }))
+		})
 	}
 
 	draw(mainCtx: CanvasRenderingContext2D) {
@@ -725,11 +704,10 @@ export class BattleScene {
 					mainCtx.save()
 					mainCtx.fillStyle = 'lightgray'
 
-					if (skillSet[columnIndex][rowIndex] === this.state.focusedSkill) {
-						mainCtx.strokeStyle = 'red'
-					} else {
-						mainCtx.strokeStyle = 'black'
-					}
+					const lineWidth = 5
+
+					mainCtx.lineWidth = lineWidth
+					mainCtx.strokeStyle = 'black'
 
 					mainCtx.fillRect(
 						skillWidth * columnIndex,
@@ -738,10 +716,10 @@ export class BattleScene {
 						skillHeight
 					)
 					mainCtx.strokeRect(
-						skillWidth * columnIndex,
-						skillHeight * rowIndex,
-						skillWidth,
-						skillHeight
+						skillWidth * columnIndex + (lineWidth / 2),
+						skillHeight * rowIndex + (lineWidth / 2),
+						skillWidth - lineWidth,
+						skillHeight - lineWidth,
 					)
 					mainCtx.restore()
 
@@ -752,7 +730,6 @@ export class BattleScene {
 					if (skill) {
 						mainCtx.save()
 
-						mainCtx.stroke()
 						mainCtx.font = '30px serif'
 						mainCtx.textAlign = 'center'
 
@@ -770,6 +747,31 @@ export class BattleScene {
 
 						mainCtx.restore()
 					}
+				}
+			}
+
+			for (let columnIndex = 0; columnIndex < skillSet.length; columnIndex++) {
+				for (let rowIndex = 0; rowIndex < skillsPerColumn; rowIndex++) {
+					const skillHeight = 50
+					const skillWidth = this.game.gameWidth / skillSet.length
+
+					mainCtx.save()
+
+					const lineWidth = 5
+
+					mainCtx.lineWidth = lineWidth
+					mainCtx.strokeStyle = 'red'
+
+					if (skillSet[columnIndex][rowIndex] === this.state.focusedSkill) {
+						mainCtx.strokeRect(
+							skillWidth * columnIndex + (lineWidth / 2),
+							skillHeight * rowIndex + (lineWidth / 2),
+							skillWidth - lineWidth,
+							skillHeight - lineWidth,
+						)
+					}
+
+					mainCtx.restore()
 				}
 			}
 		}
