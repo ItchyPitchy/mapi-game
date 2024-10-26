@@ -1,10 +1,8 @@
-import { BattleScene } from './BattleScene'
-import Entity from './Entity/Entity'
-import Mami from './Entity/Mami'
-import Papi from './Entity/Papi'
-import { MapScreen } from './MapScreen'
+import { MapScreen } from './Map/MapScreen'
 import { PauseScreen } from './PauseScreen'
-import { getDocumentElementById } from './helperFunctions'
+import { BattleSystem } from './BattleSystem/BattleSystem'
+import { getDocumentElementById } from './shared/helperFunctions/element'
+import { MarioSystem } from './MarioSystem/MarioSystem'
 
 type GameState = 'PAUSE_SCREEN' | 'RUNNING' | 'MAP_SCREEN' | 'BATTLE_SCENE'
 
@@ -17,11 +15,44 @@ export type Input =
 	| 'esc'
 	| 'enter'
 
+type Player = {
+	name: 'mami' | 'papi'
+	lvl: number
+	stats: Stats
+}
+
 export default class Game {
+	public players: Player[] = [
+		{
+			name: 'mami',
+			lvl: 1,
+			stats: {
+				maxHp: 60,
+				maxStamina: 60,
+				strength: 1,
+				intelligence: 1,
+				dodgeChance: 0.1,
+				hitRate: 0.9,
+			},
+		},
+		{
+			name: 'papi',
+			lvl: 1,
+			stats: {
+				maxHp: 60,
+				maxStamina: 60,
+				strength: 1,
+				intelligence: 1,
+				dodgeChance: 0.1,
+				hitRate: 0.9,
+			},
+		},
+	]
 	public mapScreen = new MapScreen(this)
 	public pauseScreen = new PauseScreen(this)
-	public battleScene = new BattleScene(this)
-	entities: Entity[] = []
+	public battleSystem = new BattleSystem(this)
+	public marioSystem: MarioSystem
+	// entities: Entity[] = []
 	public input = new Set<Input>()
 	public state: GameState = 'RUNNING'
 
@@ -33,11 +64,11 @@ export default class Game {
 	) {
 		const gameScreenEl = getDocumentElementById('gameScreen')
 
-		gameScreenEl.addEventListener('click', (e) => {
+		this.marioSystem = new MarioSystem(this)
+
+		gameScreenEl.addEventListener('click', () => {
 			this.input.add('leftClick')
 		})
-
-		console.log('hej')
 
 		document.addEventListener('keydown', (e) => {
 			console.log(e.key)
@@ -68,6 +99,35 @@ export default class Game {
 				}
 			}
 		})
+
+		document.addEventListener('keyup', (e) => {
+			switch (e.key) {
+				case 'Escape': {
+					this.input.delete('esc')
+					break
+				}
+				case 'ArrowUp': {
+					this.input.delete('up')
+					break
+				}
+				case 'ArrowLeft': {
+					this.input.delete('left')
+					break
+				}
+				case 'ArrowDown': {
+					this.input.delete('down')
+					break
+				}
+				case 'ArrowRight': {
+					this.input.delete('right')
+					break
+				}
+				case 'Enter': {
+					this.input.delete('enter')
+					break
+				}
+			}
+		})
 		// gameScreenEl.addEventListener('mousemove', (e) => {
 		// 	this.mousePos = {
 		// 		x: e.offsetX,
@@ -81,6 +141,9 @@ export default class Game {
 	start() {}
 
 	update(dt: number) {
+		this.marioSystem.update(dt)
+		return
+
 		switch (this.state) {
 			case 'PAUSE_SCREEN': {
 				this.pauseScreen.update()
@@ -93,7 +156,7 @@ export default class Game {
 				break
 			}
 			case 'BATTLE_SCENE': {
-				this.battleScene.update(dt)
+				this.battleSystem.update(dt)
 				this.clearInput()
 				break
 			}
@@ -122,13 +185,16 @@ export default class Game {
 	}
 
 	draw(mainCtx: CanvasRenderingContext2D) {
+		this.marioSystem.draw(mainCtx)
+		return
+
 		switch (this.state) {
 			case 'MAP_SCREEN': {
 				this.mapScreen.draw(mainCtx)
 				break
 			}
 			case 'BATTLE_SCENE': {
-				this.battleScene.draw(mainCtx)
+				this.battleSystem.draw(mainCtx)
 				break
 			}
 		}

@@ -1,5 +1,5 @@
 import Game, { Input } from './game'
-import { getDocumentElementById } from './helperFunctions'
+import { getDocumentElementById } from './shared/helperFunctions/element'
 
 const pauseScreen = getDocumentElementById('pauseScreen')
 const optionsEl = getDocumentElementById('options')
