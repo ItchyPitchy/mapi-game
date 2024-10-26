@@ -1,6 +1,7 @@
 import Entity from '../../shared/Entity'
 import sheathBodySheet from '../../assets/sheath_upper_body_spritesheet-Sheet.png'
 import sprintSheathedBodySheet from '../../assets/sprint_sheathed_upper_body_sprites-Sheet.png'
+import sprintSheathedLegsSheet from '../../assets/sprint_sheathed_legs_sprites-Sheet.png'
 import walkingBodySheet from '../../assets/walking_equipped_upper_body_sprites-Sheet.png'
 import staleSheathedBodySprite from '../../assets/stale_sheathed_upper_body.png'
 import staleEquippedBodySprite from '../../assets/stale_equipped_upper_body.png'
@@ -9,14 +10,12 @@ import staleLegsSprite from '../../assets/stale_legs.png'
 import { Point } from '../../types'
 import { Vector } from '../../shared/Vector'
 
-const spriteWidth = 17
+const spriteWidth = 20
 const spriteHeight = 28
 
 const walkLegsAnimationSpritesQty = 9
 const walkBodyAnimationSpritesQty = 9
 const walkBodyAnimationDuration = 1125
-const sprintBodyAnimationDuration = 600
-const sprintLegsAnimationDuration = 550
 
 const duckAnimationSpritesQty = 3
 const duckAnimationDuration = 1200
@@ -24,8 +23,12 @@ const duckAnimationDuration = 1200
 const fallAnimationDuration = 750
 
 const sheathAnimationSpritesQty = 15
-const sprintSheatedBodySpritesQty = 10
 const sheathAnimationDuration = 750
+
+const sprintSheatedBodySpritesQty = 10
+const sprintSheatedLegsSpritesQty = 11
+const sprintBodyAnimationDuration = 600
+const sprintLegsAnimationDuration = 600
 
 export class Player extends Entity {
 	public vector: Vector = new Vector(0, 0)
@@ -60,6 +63,7 @@ export class Player extends Entity {
 	public sheathBodySheet = new Image()
 	public walkingBodySheet = new Image()
 	public sprintSheathedBodySheet = new Image()
+	public sprintSheathedLegsSheet = new Image()
 	public staleSheathedBodySprite = new Image()
 	public staleEquippedBodySprite = new Image()
 	public walkingLegsSheet = new Image()
@@ -75,6 +79,7 @@ export class Player extends Entity {
 		this.sheathBodySheet.src = sheathBodySheet
 		this.walkingBodySheet.src = walkingBodySheet
 		this.sprintSheathedBodySheet.src = sprintSheathedBodySheet
+		this.sprintSheathedLegsSheet.src = sprintSheathedLegsSheet
 		this.staleSheathedBodySprite.src = staleSheathedBodySprite
 		this.staleEquippedBodySprite.src = staleEquippedBodySprite
 		this.walkingLegsSheet.src = walkingLegsSheet
@@ -350,15 +355,15 @@ export class Player extends Entity {
 						? (this.action.walk.progressMs % sprintLegsAnimationDuration) /
 						  sprintLegsAnimationDuration
 						: this.action.walk.progressMs / sprintLegsAnimationDuration
-				const walkAnimationStep = Math.floor(
-					percentProgress * walkLegsAnimationSpritesQty
+				const sprintAnimationStep = Math.floor(
+					percentProgress * sprintSheatedLegsSpritesQty
 				)
 
 				switch (this.direction) {
 					case 'left': {
 						ctx.drawImage(
-							this.walkingLegsSheet,
-							walkAnimationStep * spriteWidth,
+							this.sprintSheathedLegsSheet,
+							sprintAnimationStep * spriteWidth,
 							0,
 							spriteWidth,
 							spriteHeight,
@@ -371,8 +376,8 @@ export class Player extends Entity {
 					}
 					case 'right': {
 						ctx.drawImage(
-							this.walkingLegsSheet,
-							walkAnimationStep * spriteWidth,
+							this.sprintSheathedLegsSheet,
+							sprintAnimationStep * spriteWidth,
 							0,
 							spriteWidth,
 							spriteHeight,

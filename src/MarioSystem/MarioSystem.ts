@@ -32,8 +32,8 @@ export class MarioSystem {
 						const velocity =
 							this.player.action.sheath.state === 'in-use' ||
 							!this.player.isSheathed
-								? 250
-								: 800
+								? 150
+								: 450
 						this.player.vector.x = -velocity
 						actions.push('move')
 						break
@@ -42,8 +42,8 @@ export class MarioSystem {
 						const velocity =
 							this.player.action.sheath.state === 'in-use' ||
 							!this.player.isSheathed
-								? 250
-								: 800
+								? 150
+								: 450
 						this.player.vector.x = velocity
 						actions.push('move')
 						break
