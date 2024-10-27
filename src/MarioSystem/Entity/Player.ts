@@ -6,6 +6,10 @@ import walkingBodySheet from '../../assets/walking_equipped_upper_body_sprites-S
 import staleSheathedBodySprite from '../../assets/stale_sheathed_upper_body.png'
 import staleEquippedBodySprite from '../../assets/stale_equipped_upper_body.png'
 import walkingLegsSheet from '../../assets/walking_equipped_legs_sprites-Sheet.png'
+import jumpEquippedBodySheet from '../../assets/jump_equipped_upper_body_sprites-Sheet.png'
+import jumpLegsSheet from '../../assets/jump_legs_sprites-Sheet.png'
+import jumpLegsStaleUpwardSprite from '../../assets/jump_legs_stale_upward.png'
+import jumpEquippedBodyStaleUpwardSprite from '../../assets/jump_equipped_upper_body_stale_upward.png'
 import staleLegsSprite from '../../assets/stale_legs.png'
 import { Point } from '../../types'
 import { Vector } from '../../shared/Vector'
@@ -13,7 +17,7 @@ import { Vector } from '../../shared/Vector'
 const spriteWidth = 20
 const spriteHeight = 28
 
-const walkLegsAnimationSpritesQty = 9
+const walkLegsAnimationSpritesQty = 10
 const walkBodyAnimationSpritesQty = 9
 const walkBodyAnimationDuration = 1125
 
@@ -25,10 +29,15 @@ const fallAnimationDuration = 750
 const sheathAnimationSpritesQty = 15
 const sheathAnimationDuration = 750
 
-const sprintSheatedBodySpritesQty = 10
-const sprintSheatedLegsSpritesQty = 11
-const sprintBodyAnimationDuration = 600
-const sprintLegsAnimationDuration = 600
+const sprintSheatedBodySpritesQty = 8
+const sprintSheatedLegsSpritesQty = 10
+const sprintBodyAnimationDuration = 800
+const sprintLegsAnimationDuration = 1000
+
+const jumpLegsSpritesQty = 6
+const jumpLegsAnimationDuration = 500
+const jumpEquippedBodySpritesQty = 6
+const jumpEquippedBodyAnimationDuration = 500
 
 export class Player extends Entity {
 	public vector: Vector = new Vector(0, 0)
@@ -36,6 +45,7 @@ export class Player extends Entity {
 	private direction: 'left' | 'right' = 'right'
 
 	public isSheathed: boolean = false
+	public isJumping: boolean = false
 	public action: {
 		duck: {
 			state: 'not-in-use' | 'in-use' | 'complete'
@@ -53,11 +63,16 @@ export class Player extends Entity {
 			state: 'not-in-use' | 'in-use'
 			progressMs: number
 		}
+		jump: {
+			state: 'not-in-use' | 'in-use'
+			progressMs: number
+		}
 	} = {
 		duck: { state: 'not-in-use', progressMs: 0 },
 		walk: { state: 'not-in-use', progressMs: 0 },
 		fall: { state: 'not-in-use', progressMs: 0 },
 		sheath: { state: 'not-in-use', progressMs: 0 },
+		jump: { state: 'not-in-use', progressMs: 0 },
 	}
 
 	public sheathBodySheet = new Image()
@@ -66,6 +81,10 @@ export class Player extends Entity {
 	public sprintSheathedLegsSheet = new Image()
 	public staleSheathedBodySprite = new Image()
 	public staleEquippedBodySprite = new Image()
+	public jumpEquippedBodySheet = new Image()
+	public jumpLegsSheet = new Image()
+	public jumpLegsStaleUpwardSprite = new Image()
+	public jumpEquippedBodyStaleUpwardSprite = new Image()
 	public walkingLegsSheet = new Image()
 	public staleLegsSprite = new Image()
 
@@ -82,11 +101,16 @@ export class Player extends Entity {
 		this.sprintSheathedLegsSheet.src = sprintSheathedLegsSheet
 		this.staleSheathedBodySprite.src = staleSheathedBodySprite
 		this.staleEquippedBodySprite.src = staleEquippedBodySprite
+		this.jumpEquippedBodySheet.src = jumpEquippedBodySheet
+		this.jumpLegsSheet.src = jumpLegsSheet
+		this.jumpLegsStaleUpwardSprite.src = jumpLegsStaleUpwardSprite
+		this.jumpEquippedBodyStaleUpwardSprite.src =
+			jumpEquippedBodyStaleUpwardSprite
 		this.walkingLegsSheet.src = walkingLegsSheet
 		this.staleLegsSprite.src = staleLegsSprite
 	}
 
-	update(dt: number, actions: Array<'move' | 'duck' | 'sheath'>) {
+	update(dt: number, actions: Array<'move' | 'duck' | 'sheath' | 'jump'>) {
 		if (!actions.some((action) => action === 'duck')) {
 			this.action.duck.progressMs = 0
 			this.action.duck.state = 'not-in-use'
@@ -109,6 +133,23 @@ export class Player extends Entity {
 
 			if (actions.some((action) => action === 'sheath')) {
 				actions.splice(actions.indexOf('sheath'), 1)
+			}
+		}
+
+		if (this.action.jump.state === 'in-use') {
+			const nextStateProgress = this.action.jump.progressMs + dt * 1000
+
+			if (nextStateProgress > jumpLegsAnimationDuration) {
+				this.action.jump.progressMs = 0
+				this.action.jump.state = 'not-in-use'
+				this.vector.y -= 500
+				this.isJumping = true
+			} else {
+				this.action.jump.progressMs += dt * 1000
+			}
+
+			if (actions.some((action) => action === 'jump')) {
+				actions.splice(actions.indexOf('jump'), 1)
 			}
 		}
 
@@ -151,6 +192,11 @@ export class Player extends Entity {
 						? 'complete'
 						: 'in-use'
 			}
+
+			if (action === 'jump') {
+				this.action.jump.progressMs += dt * 1000
+				this.action.jump.state = 'in-use'
+			}
 		}
 
 		this.position.x += this.vector.x * dt
@@ -162,11 +208,54 @@ export class Player extends Entity {
 
 		ctx.imageSmoothingEnabled = false
 
-		if (this.direction === 'right') {
-			ctx.scale(-1, 1)
-		}
+		const scale =
+			this.direction === 'right' ? ctx.scale(-1, 1) : ctx.scale(1, 1)
+		const scaleBasedPositionMultiplier = this.direction === 'right' ? -1 : 1
 
+		console.log(this.isJumping)
 		switch (true) {
+			case this.isJumping: {
+				ctx.drawImage(
+					this.jumpEquippedBodyStaleUpwardSprite,
+					0,
+					0,
+					spriteWidth,
+					spriteHeight,
+					scaleBasedPositionMultiplier * this.position.x -
+						(spriteWidth * 5) / 2,
+					this.position.y - spriteHeight * 5,
+					spriteWidth * 5,
+					spriteHeight * 5
+				)
+
+				break
+			}
+			case this.action.jump.state === 'in-use': {
+				const percentProgress =
+					this.action.jump.progressMs > jumpEquippedBodyAnimationDuration
+						? (this.action.jump.progressMs %
+								jumpEquippedBodyAnimationDuration) /
+						  jumpEquippedBodyAnimationDuration
+						: this.action.jump.progressMs / jumpEquippedBodyAnimationDuration
+				const jumpAnimationStep = Math.floor(
+					percentProgress * jumpEquippedBodySpritesQty
+				)
+
+				ctx.drawImage(
+					this.jumpEquippedBodySheet,
+					jumpAnimationStep * spriteWidth,
+					0,
+					spriteWidth,
+					spriteHeight,
+					scaleBasedPositionMultiplier * this.position.x -
+						(spriteWidth * 5) / 2,
+					this.position.y - spriteHeight * 5,
+					spriteWidth * 5,
+					spriteHeight * 5
+				)
+
+				break
+			}
 			case this.action.fall.state === 'in-use': {
 				break
 			}
@@ -182,36 +271,18 @@ export class Player extends Entity {
 					  1 -
 					  Math.floor(percentProgress * sheathAnimationSpritesQty)
 
-				switch (this.direction) {
-					case 'left': {
-						ctx.drawImage(
-							this.sheathBodySheet,
-							sheathAnimationStep * spriteWidth,
-							0,
-							spriteWidth,
-							spriteHeight,
-							this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-					case 'right': {
-						ctx.drawImage(
-							this.sheathBodySheet,
-							sheathAnimationStep * spriteWidth,
-							0,
-							spriteWidth,
-							spriteHeight,
-							-this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-				}
+				ctx.drawImage(
+					this.sheathBodySheet,
+					sheathAnimationStep * spriteWidth,
+					0,
+					spriteWidth,
+					spriteHeight,
+					scaleBasedPositionMultiplier * this.position.x -
+						(spriteWidth * 5) / 2,
+					this.position.y - spriteHeight * 5,
+					spriteWidth * 5,
+					spriteHeight * 5
+				)
 
 				break
 			}
@@ -227,36 +298,18 @@ export class Player extends Entity {
 					percentProgress * sprintSheatedBodySpritesQty
 				)
 
-				switch (this.direction) {
-					case 'left': {
-						ctx.drawImage(
-							this.sprintSheathedBodySheet,
-							walkAnimationStep * spriteWidth,
-							0,
-							spriteWidth,
-							spriteHeight,
-							this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-					case 'right': {
-						ctx.drawImage(
-							this.sprintSheathedBodySheet,
-							walkAnimationStep * spriteWidth,
-							0,
-							spriteWidth,
-							spriteHeight,
-							-this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-				}
+				ctx.drawImage(
+					this.sprintSheathedBodySheet,
+					walkAnimationStep * spriteWidth,
+					0,
+					spriteWidth,
+					spriteHeight,
+					scaleBasedPositionMultiplier * this.position.x -
+						(spriteWidth * 5) / 2,
+					this.position.y - spriteHeight * 5,
+					spriteWidth * 5,
+					spriteHeight * 5
+				)
 
 				break
 			}
@@ -270,80 +323,81 @@ export class Player extends Entity {
 					percentProgress * walkBodyAnimationSpritesQty
 				)
 
-				switch (this.direction) {
-					case 'left': {
-						ctx.drawImage(
-							this.walkingBodySheet,
-							walkAnimationStep * spriteWidth,
-							0,
-							spriteWidth,
-							spriteHeight,
-							this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-					case 'right': {
-						ctx.drawImage(
-							this.walkingBodySheet,
-							walkAnimationStep * spriteWidth,
-							0,
-							spriteWidth,
-							spriteHeight,
-							-this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-				}
-
+				ctx.drawImage(
+					this.walkingBodySheet,
+					walkAnimationStep * spriteWidth,
+					0,
+					spriteWidth,
+					spriteHeight,
+					scaleBasedPositionMultiplier * this.position.x -
+						(spriteWidth * 5) / 2,
+					this.position.y - spriteHeight * 5,
+					spriteWidth * 5,
+					spriteHeight * 5
+				)
 				break
 			}
 			default: {
-				switch (this.direction) {
-					case 'left': {
-						ctx.drawImage(
-							this.isSheathed
-								? this.staleSheathedBodySprite
-								: this.staleEquippedBodySprite,
-							0,
-							0,
-							spriteWidth,
-							spriteHeight,
-							this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-					case 'right': {
-						ctx.drawImage(
-							this.isSheathed
-								? this.staleSheathedBodySprite
-								: this.staleEquippedBodySprite,
-							0,
-							0,
-							spriteWidth,
-							spriteHeight,
-							-this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-				}
-
+				ctx.drawImage(
+					this.isSheathed
+						? this.staleSheathedBodySprite
+						: this.staleEquippedBodySprite,
+					0,
+					0,
+					spriteWidth,
+					spriteHeight,
+					scaleBasedPositionMultiplier * this.position.x -
+						(spriteWidth * 5) / 2,
+					this.position.y - spriteHeight * 5,
+					spriteWidth * 5,
+					spriteHeight * 5
+				)
 				break
 			}
 		}
 
 		switch (true) {
+			case this.isJumping: {
+				ctx.drawImage(
+					this.jumpLegsStaleUpwardSprite,
+					0,
+					0,
+					spriteWidth,
+					spriteHeight,
+					scaleBasedPositionMultiplier * this.position.x -
+						(spriteWidth * 5) / 2,
+					this.position.y - spriteHeight * 5,
+					spriteWidth * 5,
+					spriteHeight * 5
+				)
+
+				break
+			}
+			case this.action.jump.state === 'in-use': {
+				const percentProgress =
+					this.action.jump.progressMs > jumpLegsAnimationDuration
+						? (this.action.jump.progressMs % jumpLegsAnimationDuration) /
+						  jumpLegsAnimationDuration
+						: this.action.jump.progressMs / jumpLegsAnimationDuration
+				const jumpAnimationStep = Math.floor(
+					percentProgress * jumpLegsSpritesQty
+				)
+
+				ctx.drawImage(
+					this.jumpLegsSheet,
+					jumpAnimationStep * spriteWidth,
+					0,
+					spriteWidth,
+					spriteHeight,
+					scaleBasedPositionMultiplier * this.position.x -
+						(spriteWidth * 5) / 2,
+					this.position.y - spriteHeight * 5,
+					spriteWidth * 5,
+					spriteHeight * 5
+				)
+
+				break
+			}
 			case this.action.fall.state === 'in-use': {
 				break
 			}
@@ -359,36 +413,18 @@ export class Player extends Entity {
 					percentProgress * sprintSheatedLegsSpritesQty
 				)
 
-				switch (this.direction) {
-					case 'left': {
-						ctx.drawImage(
-							this.sprintSheathedLegsSheet,
-							sprintAnimationStep * spriteWidth,
-							0,
-							spriteWidth,
-							spriteHeight,
-							this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-					case 'right': {
-						ctx.drawImage(
-							this.sprintSheathedLegsSheet,
-							sprintAnimationStep * spriteWidth,
-							0,
-							spriteWidth,
-							spriteHeight,
-							-this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-				}
+				ctx.drawImage(
+					this.sprintSheathedLegsSheet,
+					sprintAnimationStep * spriteWidth,
+					0,
+					spriteWidth,
+					spriteHeight,
+					scaleBasedPositionMultiplier * this.position.x -
+						(spriteWidth * 5) / 2,
+					this.position.y - spriteHeight * 5,
+					spriteWidth * 5,
+					spriteHeight * 5
+				)
 
 				break
 			}
@@ -402,70 +438,34 @@ export class Player extends Entity {
 					percentProgress * walkLegsAnimationSpritesQty
 				)
 
-				switch (this.direction) {
-					case 'left': {
-						ctx.drawImage(
-							this.walkingLegsSheet,
-							walkAnimationStep * spriteWidth,
-							0,
-							spriteWidth,
-							spriteHeight,
-							this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-					case 'right': {
-						ctx.drawImage(
-							this.walkingLegsSheet,
-							walkAnimationStep * spriteWidth,
-							0,
-							spriteWidth,
-							spriteHeight,
-							-this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-				}
+				ctx.drawImage(
+					this.walkingLegsSheet,
+					walkAnimationStep * spriteWidth,
+					0,
+					spriteWidth,
+					spriteHeight,
+					scaleBasedPositionMultiplier * this.position.x -
+						(spriteWidth * 5) / 2,
+					this.position.y - spriteHeight * 5,
+					spriteWidth * 5,
+					spriteHeight * 5
+				)
 
 				break
 			}
 			default: {
-				switch (this.direction) {
-					case 'left': {
-						ctx.drawImage(
-							this.staleLegsSprite,
-							0,
-							0,
-							spriteWidth,
-							spriteHeight,
-							this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-					case 'right': {
-						ctx.drawImage(
-							this.staleLegsSprite,
-							0,
-							0,
-							spriteWidth,
-							spriteHeight,
-							-this.position.x - (spriteWidth * 10) / 2,
-							this.position.y - spriteHeight * 10,
-							spriteWidth * 10,
-							spriteHeight * 10
-						)
-						break
-					}
-				}
+				ctx.drawImage(
+					this.staleLegsSprite,
+					0,
+					0,
+					spriteWidth,
+					spriteHeight,
+					scaleBasedPositionMultiplier * this.position.x -
+						(spriteWidth * 5) / 2,
+					this.position.y - spriteHeight * 5,
+					spriteWidth * 5,
+					spriteHeight * 5
+				)
 
 				break
 			}

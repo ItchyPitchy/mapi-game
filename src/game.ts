@@ -14,6 +14,7 @@ export type Input =
 	| 'right'
 	| 'esc'
 	| 'enter'
+	| 's'
 
 type Player = {
 	name: 'mami' | 'papi'
@@ -93,6 +94,10 @@ export default class Game {
 					this.input.add('right')
 					break
 				}
+				case 's': {
+					this.input.add('s')
+					break
+				}
 				case 'Enter': {
 					this.input.add('enter')
 					break
@@ -124,6 +129,10 @@ export default class Game {
 				}
 				case 'Enter': {
 					this.input.delete('enter')
+					break
+				}
+				case 's': {
+					this.input.delete('s')
 					break
 				}
 			}

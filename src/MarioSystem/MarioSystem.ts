@@ -1,11 +1,12 @@
 import Game, { Input } from '../game'
 import { Player } from './Entity/Player'
 
-const moveInputs: Extract<Input, 'left' | 'right' | 'down' | 'up'>[] = [
+const moveInputs: Extract<Input, 'left' | 'right' | 'down' | 'up' | 's'>[] = [
 	'left',
 	'right',
 	'down',
 	'up',
+	's',
 ]
 
 export class MarioSystem {
@@ -19,7 +20,14 @@ export class MarioSystem {
 	}
 
 	update(dt: number) {
-		const actions: Array<'move' | 'sheath' | 'duck'> = []
+		const actions: Array<'move' | 'sheath' | 'duck' | 'jump'> = []
+
+		if (this.player.position.y >= this.game.gameHeight / 2) {
+			this.player.vector.y = 0
+			this.player.isJumping = false
+		} else {
+			this.player.vector.y += 1000 * dt
+		}
 
 		if (!this.game.input.has('left') && !this.game.input.has('right')) {
 			this.player.vector.x = 0
@@ -33,7 +41,7 @@ export class MarioSystem {
 							this.player.action.sheath.state === 'in-use' ||
 							!this.player.isSheathed
 								? 150
-								: 450
+								: 500
 						this.player.vector.x = -velocity
 						actions.push('move')
 						break
@@ -43,7 +51,7 @@ export class MarioSystem {
 							this.player.action.sheath.state === 'in-use' ||
 							!this.player.isSheathed
 								? 150
-								: 450
+								: 500
 						this.player.vector.x = velocity
 						actions.push('move')
 						break
@@ -54,6 +62,10 @@ export class MarioSystem {
 					}
 					case 'up': {
 						actions.push('sheath')
+						break
+					}
+					case 's': {
+						actions.push('jump')
 						break
 					}
 				}
