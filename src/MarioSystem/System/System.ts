@@ -1,5 +1,5 @@
 import Game from '../../game'
-import Entity from '../Entity'
+import { Entity } from '../Entity/Entity'
 
 export class System {
 	appliesTo(entity: Entity) {
@@ -9,6 +9,4 @@ export class System {
 	update(game: Game, entities: Entity[], dt: number) {
 		throw new Error('not implemented')
 	}
-
-	draw(ctx: CanvasRenderingContext2D) {}
 }

@@ -72,7 +72,7 @@ export default class Game {
 		})
 
 		document.addEventListener('keydown', (e) => {
-			console.log(e.key)
+			// console.log(e.key)
 			switch (e.key) {
 				case 'Escape': {
 					this.input.add('esc')

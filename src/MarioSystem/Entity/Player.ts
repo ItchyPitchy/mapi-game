@@ -1,4 +1,6 @@
-import Entity from '../../shared/Entity'
+import { Point } from '../../types'
+import { Entity } from './Entity'
+
 import sheathBodySheet from '../../assets/sheath_upper_body_spritesheet-Sheet.png'
 import sprintSheathedBodySheet from '../../assets/sprint_sheathed_upper_body_sprites-Sheet.png'
 import sprintSheathedLegsSheet from '../../assets/sprint_sheathed_legs_sprites-Sheet.png'
@@ -11,8 +13,9 @@ import jumpLegsSheet from '../../assets/jump_legs_sprites-Sheet.png'
 import jumpLegsStaleUpwardSprite from '../../assets/jump_legs_stale_upward.png'
 import jumpEquippedBodyStaleUpwardSprite from '../../assets/jump_equipped_upper_body_stale_upward.png'
 import staleLegsSprite from '../../assets/stale_legs.png'
-import { Point } from '../../types'
 import { Vector } from '../../shared/Vector'
+import { Gravitational } from '../Component/Gravitational'
+import { Collidable } from '../Component/Collidable'
 
 const spriteWidth = 20
 const spriteHeight = 28
@@ -34,15 +37,13 @@ const sprintSheatedLegsSpritesQty = 10
 const sprintBodyAnimationDuration = 800
 const sprintLegsAnimationDuration = 1000
 
-const jumpLegsSpritesQty = 6
+const jumpLegsSpritesQty = 5
 const jumpLegsAnimationDuration = 500
 const jumpEquippedBodySpritesQty = 6
-const jumpEquippedBodyAnimationDuration = 500
+const jumpEquippedBodyAnimationDuration = 600
 
 export class Player extends Entity {
-	public vector: Vector = new Vector(0, 0)
-
-	private direction: 'left' | 'right' = 'right'
+	private direction: 'left' | 'right' = 'left'
 
 	public isSheathed: boolean = false
 	public isJumping: boolean = false
@@ -90,10 +91,14 @@ export class Player extends Entity {
 
 	constructor(
 		position: Point,
-		rotation = 0,
-		size = { height: spriteHeight, width: spriteWidth }
+		size = { height: spriteHeight * 5, width: spriteWidth * 5 }
 	) {
-		super(position, size, rotation)
+		super(position, size, new Vector(0, 0), [
+			new Gravitational(1000),
+			new Collidable(0, false),
+		])
+
+		// this.addComponents([new Gravitational(10), new Collidable(0, 'rectangle')])
 
 		this.sheathBodySheet.src = sheathBodySheet
 		this.walkingBodySheet.src = walkingBodySheet
@@ -111,6 +116,10 @@ export class Player extends Entity {
 	}
 
 	update(dt: number, actions: Array<'move' | 'duck' | 'sheath' | 'jump'>) {
+		if (this.vector.y !== 0 && actions.some((action) => action === 'jump')) {
+			actions.splice(actions.indexOf('jump'), 1)
+		}
+
 		if (!actions.some((action) => action === 'duck')) {
 			this.action.duck.progressMs = 0
 			this.action.duck.state = 'not-in-use'
@@ -142,7 +151,7 @@ export class Player extends Entity {
 			if (nextStateProgress > jumpLegsAnimationDuration) {
 				this.action.jump.progressMs = 0
 				this.action.jump.state = 'not-in-use'
-				this.vector.y -= 500
+				this.vector.y -= 700
 				this.isJumping = true
 			} else {
 				this.action.jump.progressMs += dt * 1000
@@ -153,16 +162,35 @@ export class Player extends Entity {
 			}
 		}
 
-		// TODO: Check if colliding with floor (not falling)
-		if (true) {
-			this.action.fall.state = 'not-in-use'
-			this.action.fall.progressMs = 0
-		} else {
-			this.action.fall.state = 'in-use'
-			this.action.fall.progressMs += dt * 1000
+		// // Vector is 0 when against floor; then cannot jump
+		// if (this.vector.y !== 0 && actions.some((action) => action === 'jump')) {
+		// 	actions.splice(actions.indexOf('jump'), 1)
+		// }
 
-			this.action.walk.state = 'not-in-use'
-			this.action.walk.progressMs = 0
+		switch (true) {
+			// Reset fall state when againt floor; vector is 0
+			case this.vector.y === 0: {
+				this.action.fall.state = 'not-in-use'
+				this.action.fall.progressMs = 0
+
+				break
+			}
+			// Reset jumping state and update fall state when descending
+			case this.vector.y > 0: {
+				this.action.jump.progressMs = 0
+				this.action.jump.state = 'not-in-use'
+				this.isJumping = false
+
+				this.action.fall.state = 'in-use'
+				this.action.fall.progressMs += dt * 1000
+
+				break
+			}
+			// Reset fall state when ascending
+			case this.vector.y < 0: {
+				this.action.fall.state = 'not-in-use'
+				this.action.fall.progressMs += dt * 1000
+			}
 		}
 
 		for (const action of actions) {
@@ -199,12 +227,28 @@ export class Player extends Entity {
 			}
 		}
 
-		this.position.x += this.vector.x * dt
-		this.position.y += this.vector.y * dt
+		// this.position.x += this.vector.x * dt
+		// this.position.y += this.vector.y * dt
 	}
 
-	draw({ ctx }: { ctx: CanvasRenderingContext2D }) {
+	calculateHitbox(): { x: number; y: number; width: number; height: number } {
+		const ratio = 0.5
+		const x = this.position.x - (this.size.width / 2) * ratio
+		const y = this.position.y - this.size.height
+		const width = this.size.width - this.size.width * ratio
+		const height = this.size.height
+
+		return { x, y, width, height }
+	}
+
+	draw(ctx: CanvasRenderingContext2D) {
 		ctx.save()
+
+		const hitbox = this.calculateHitbox()
+
+		ctx.strokeStyle = 'yellow'
+		ctx.strokeRect(hitbox.x, hitbox.y, hitbox.width, hitbox.height)
+		ctx.stroke()
 
 		ctx.imageSmoothingEnabled = false
 
@@ -212,7 +256,6 @@ export class Player extends Entity {
 			this.direction === 'right' ? ctx.scale(-1, 1) : ctx.scale(1, 1)
 		const scaleBasedPositionMultiplier = this.direction === 'right' ? -1 : 1
 
-		console.log(this.isJumping)
 		switch (true) {
 			case this.isJumping: {
 				ctx.drawImage(
@@ -221,11 +264,10 @@ export class Player extends Entity {
 					0,
 					spriteWidth,
 					spriteHeight,
-					scaleBasedPositionMultiplier * this.position.x -
-						(spriteWidth * 5) / 2,
-					this.position.y - spriteHeight * 5,
-					spriteWidth * 5,
-					spriteHeight * 5
+					scaleBasedPositionMultiplier * this.position.x - this.size.width / 2,
+					this.position.y - this.size.height,
+					this.size.width,
+					this.size.height
 				)
 
 				break
@@ -247,18 +289,17 @@ export class Player extends Entity {
 					0,
 					spriteWidth,
 					spriteHeight,
-					scaleBasedPositionMultiplier * this.position.x -
-						(spriteWidth * 5) / 2,
-					this.position.y - spriteHeight * 5,
-					spriteWidth * 5,
-					spriteHeight * 5
+					scaleBasedPositionMultiplier * this.position.x - this.size.width / 2,
+					this.position.y - this.size.height,
+					this.size.width,
+					this.size.height
 				)
 
 				break
 			}
-			case this.action.fall.state === 'in-use': {
-				break
-			}
+			// case this.action.fall.state === 'in-use': {
+			// 	break
+			// }
 			case this.action.sheath.state === 'in-use': {
 				const percentProgress =
 					this.action.sheath.progressMs > sheathAnimationDuration
@@ -277,11 +318,10 @@ export class Player extends Entity {
 					0,
 					spriteWidth,
 					spriteHeight,
-					scaleBasedPositionMultiplier * this.position.x -
-						(spriteWidth * 5) / 2,
-					this.position.y - spriteHeight * 5,
-					spriteWidth * 5,
-					spriteHeight * 5
+					scaleBasedPositionMultiplier * this.position.x - this.size.width / 2,
+					this.position.y - this.size.height,
+					this.size.width,
+					this.size.height
 				)
 
 				break
@@ -304,11 +344,10 @@ export class Player extends Entity {
 					0,
 					spriteWidth,
 					spriteHeight,
-					scaleBasedPositionMultiplier * this.position.x -
-						(spriteWidth * 5) / 2,
-					this.position.y - spriteHeight * 5,
-					spriteWidth * 5,
-					spriteHeight * 5
+					scaleBasedPositionMultiplier * this.position.x - this.size.width / 2,
+					this.position.y - this.size.height,
+					this.size.width,
+					this.size.height
 				)
 
 				break
@@ -329,11 +368,10 @@ export class Player extends Entity {
 					0,
 					spriteWidth,
 					spriteHeight,
-					scaleBasedPositionMultiplier * this.position.x -
-						(spriteWidth * 5) / 2,
-					this.position.y - spriteHeight * 5,
-					spriteWidth * 5,
-					spriteHeight * 5
+					scaleBasedPositionMultiplier * this.position.x - this.size.width / 2,
+					this.position.y - this.size.height,
+					this.size.width,
+					this.size.height
 				)
 				break
 			}
@@ -346,11 +384,10 @@ export class Player extends Entity {
 					0,
 					spriteWidth,
 					spriteHeight,
-					scaleBasedPositionMultiplier * this.position.x -
-						(spriteWidth * 5) / 2,
-					this.position.y - spriteHeight * 5,
-					spriteWidth * 5,
-					spriteHeight * 5
+					scaleBasedPositionMultiplier * this.position.x - this.size.width / 2,
+					this.position.y - this.size.height,
+					this.size.width,
+					this.size.height
 				)
 				break
 			}
@@ -364,11 +401,10 @@ export class Player extends Entity {
 					0,
 					spriteWidth,
 					spriteHeight,
-					scaleBasedPositionMultiplier * this.position.x -
-						(spriteWidth * 5) / 2,
-					this.position.y - spriteHeight * 5,
-					spriteWidth * 5,
-					spriteHeight * 5
+					scaleBasedPositionMultiplier * this.position.x - this.size.width / 2,
+					this.position.y - this.size.height,
+					this.size.width,
+					this.size.height
 				)
 
 				break
@@ -389,18 +425,17 @@ export class Player extends Entity {
 					0,
 					spriteWidth,
 					spriteHeight,
-					scaleBasedPositionMultiplier * this.position.x -
-						(spriteWidth * 5) / 2,
-					this.position.y - spriteHeight * 5,
-					spriteWidth * 5,
-					spriteHeight * 5
+					scaleBasedPositionMultiplier * this.position.x - this.size.width / 2,
+					this.position.y - this.size.height,
+					this.size.width,
+					this.size.height
 				)
 
 				break
 			}
-			case this.action.fall.state === 'in-use': {
-				break
-			}
+			// case this.action.fall.state === 'in-use': {
+			// 	break
+			// }
 			case this.action.walk.state === 'in-use' &&
 				this.isSheathed &&
 				this.action.sheath.state === 'not-in-use': {
@@ -419,11 +454,10 @@ export class Player extends Entity {
 					0,
 					spriteWidth,
 					spriteHeight,
-					scaleBasedPositionMultiplier * this.position.x -
-						(spriteWidth * 5) / 2,
-					this.position.y - spriteHeight * 5,
-					spriteWidth * 5,
-					spriteHeight * 5
+					scaleBasedPositionMultiplier * this.position.x - this.size.width / 2,
+					this.position.y - this.size.height,
+					this.size.width,
+					this.size.height
 				)
 
 				break
@@ -444,11 +478,10 @@ export class Player extends Entity {
 					0,
 					spriteWidth,
 					spriteHeight,
-					scaleBasedPositionMultiplier * this.position.x -
-						(spriteWidth * 5) / 2,
-					this.position.y - spriteHeight * 5,
-					spriteWidth * 5,
-					spriteHeight * 5
+					scaleBasedPositionMultiplier * this.position.x - this.size.width / 2,
+					this.position.y - this.size.height,
+					this.size.width,
+					this.size.height
 				)
 
 				break
@@ -460,11 +493,10 @@ export class Player extends Entity {
 					0,
 					spriteWidth,
 					spriteHeight,
-					scaleBasedPositionMultiplier * this.position.x -
-						(spriteWidth * 5) / 2,
-					this.position.y - spriteHeight * 5,
-					spriteWidth * 5,
-					spriteHeight * 5
+					scaleBasedPositionMultiplier * this.position.x - this.size.width / 2,
+					this.position.y - this.size.height,
+					this.size.width,
+					this.size.height
 				)
 
 				break
