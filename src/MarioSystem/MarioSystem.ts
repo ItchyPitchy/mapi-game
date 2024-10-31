@@ -1,11 +1,11 @@
 import Game, { Input } from '../game'
 import { Entity } from './Entity/Entity'
-import { Player } from './Entity/Player'
+import { Player } from './Entity/Player/Player'
 import { Wall } from './Entity/Wall'
 import { CollisionSystem } from './System/CollisionSystem'
 import { GravitySystem } from './System/GravitySystem'
 import { MoveSystem } from './System/MoveSystem'
-import { System } from './System/System'
+import { PlayerSystem } from './System/PlayerSystem'
 
 const moveInputs: Extract<Input, 'left' | 'right' | 'down' | 'up' | 's'>[] = [
 	'left',
@@ -17,10 +17,11 @@ const moveInputs: Extract<Input, 'left' | 'right' | 'down' | 'up' | 's'>[] = [
 
 export class MarioSystem {
 	public entities: Entity[] = []
-	public player: Player | null
+	public player: Player
 	public gravitySystem: GravitySystem = new GravitySystem()
 	public collisionSystem: CollisionSystem = new CollisionSystem()
 	public moveSystem: MoveSystem = new MoveSystem()
+	public playerSystem: PlayerSystem = new PlayerSystem()
 
 	constructor(readonly game: Game) {
 		this.player = new Player({ x: game.gameWidth / 2, y: game.gameHeight / 2 })
@@ -46,14 +47,6 @@ export class MarioSystem {
 				[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
 				[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
 				[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-				// [1, 1, 1],
-				// [1, 0, 0],
-				// // [1, 0, 0],
-				// // [1, 0, 0],
-				// // [1, 0, 0],
-				// // [1, 0, 0],
-				// [1, 0, 99],
-				// [1, 1, 1],
 			],
 		}
 
@@ -165,104 +158,18 @@ export class MarioSystem {
 	}
 
 	update(dt: number) {
-		// console.log(this.entities)
-		const actions: Array<'move' | 'sheath' | 'duck' | 'jump'> = []
-
-		// if (this.player.position.y >= this.game.gameHeight / 2) {
-		// 	this.player.vector.y = 0
-		// 	this.player.isJumping = false
-		// } else {
-		// 	this.player.vector.y += 1000 * dt
-		// }
-
-		if (this.player === null) return
-
-		if (!this.game.input.has('left') && !this.game.input.has('right')) {
-			this.player.vector.x = 0
-		}
-
-		if (moveInputs.some((input) => this.game.input.has(input))) {
-			for (const input of this.game.input) {
-				switch (input) {
-					case 'left': {
-						const velocity =
-							this.player.action.sheath.state === 'in-use' ||
-							!this.player.isSheathed
-								? 150
-								: 500
-						this.player.vector.x = -velocity
-						actions.push('move')
-						break
-					}
-					case 'right': {
-						const velocity =
-							this.player.action.sheath.state === 'in-use' ||
-							!this.player.isSheathed
-								? 150
-								: 500
-						this.player.vector.x = velocity
-						actions.push('move')
-						break
-					}
-					case 'down': {
-						actions.push('duck')
-						break
-					}
-					case 'up': {
-						actions.push('sheath')
-						break
-					}
-					case 's': {
-						actions.push('jump')
-						break
-					}
-				}
-			}
-		}
-
-		this.player.update(dt, actions)
-
 		for (const system of [
+			this.playerSystem,
 			this.gravitySystem,
 			this.moveSystem,
 			this.collisionSystem,
 		]) {
 			const filteredEntities = [this.player, ...this.entities].filter(
-				(entity) => system.appliesTo(entity)
+				system.appliesTo
 			)
-
-			// console.log('filteredEntities', filteredEntities)
 
 			system.update(this.game, filteredEntities, dt)
 		}
-
-		// for (const system of [
-		// 	// this.collisionSystem,
-		// 	this.gravitySystem,
-		// 	// this.moveSystem,
-		// ]) {
-		// 	const filteredEntities = [this.player, ...this.entities].filter(
-		// 		(entity) => system.appliesTo(entity)
-		// 	)
-
-		// 	// console.log('filteredEntities', filteredEntities)
-
-		// 	system.update(this.game, filteredEntities, dt)
-		// }
-
-		// for (const system of [
-		// 	// this.collisionSystem,
-		// 	// this.gravitySystem,
-		// 	this.moveSystem,
-		// ]) {
-		// 	const filteredEntities = [this.player, ...this.entities].filter(
-		// 		(entity) => system.appliesTo(entity)
-		// 	)
-
-		// 	// console.log('filteredEntities', filteredEntities)
-
-		// 	system.update(this.game, filteredEntities, dt)
-		// }
 	}
 
 	draw(mainCtx: CanvasRenderingContext2D) {
@@ -272,49 +179,4 @@ export class MarioSystem {
 			entity.draw(mainCtx)
 		}
 	}
-}
-
-export function detectCollision(entity1: Entity, entity2: Entity) {
-	// const entity1CenterX = entity1.position.x + entity1.size.width / 2
-	// const entity1CenterY = entity1.position.y + entity1.size.height / 2
-	// const entity2CenterX = entity2.position.x + entity2.size.width / 2
-	// const entity2CenterY = entity2.position.y + entity2.size.height / 2
-	// const distanceToCentersX = Math.abs(entity1CenterX - entity2CenterX)
-	// const distanceToCentersY = Math.abs(entity1CenterY - entity2CenterY)
-	// // Is colliding
-	// if (
-	// 	distanceToCentersX <= entity1.size.width / 2 + entity2.size.width / 2 &&
-	// 	distanceToCentersY <= entity1.size.height / 2 + entity2.size.height / 2
-	// ) {
-	// 	entity1.position.x -= entity1.vector.x * dt
-	// 	entity1.position.y -= entity1.vector.y * dt
-	// 	entity2.position.x -= entity2.vector.x * dt
-	// 	entity2.position.y -= entity2.vector.y * dt
-	// }
-	// const topEntity1 = entity1.position.y
-	// const leftEntity1 = entity1.position.x
-	// const rightEntity1 = entity1.position.x + entity1.size.width
-	// const bottomEntity1 = entity1.position.y + entity1.size.height
-	// const topEntity2 = entity2.position.y
-	// const leftEntity2 = entity2.position.x
-	// const rightEntity2 = entity2.position.x + entity2.size.width
-	// const bottomEntity2 = entity2.position.y + entity2.size.height
-	// if (topEntity1 >= topEntity2 && topEntity1 <= bottomEntity2)
-	// 	if (
-	// 		topEntity1 <= bottomEntity2 &&
-	// 		topEntity2 <= bottomEntity1 &&
-	// 		rightEntity1 <= leftEntity2 &&
-	// 		rightEntity2 <= leftEntity1
-	// 	)
-	// 		if (
-	// 			bottoBall >= topOfObject &&
-	// 			topOfBall <= bottomOfObject &&
-	// 			ball.position.x + ball.size >= leftSideOfObject &&
-	// 			ball.position.x <= rightSideOfObject
-	// 		) {
-	// 			//collision with paddle
-	// 			return true
-	// 		} else {
-	// 			return false
-	// 		}
 }

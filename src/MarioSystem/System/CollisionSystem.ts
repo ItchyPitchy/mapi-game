@@ -3,7 +3,7 @@ import { System } from './System.js'
 import { Entity } from '../Entity/Entity.js'
 import { Collidable } from '../Component/Collidable.js'
 import { Gravitational } from '../Component/Gravitational.js'
-import { Player } from '../Entity/Player.js'
+import { Player } from '../Entity/Player/Player.js'
 
 export class CollisionSystem extends System {
 	constructor() {
@@ -15,6 +15,14 @@ export class CollisionSystem extends System {
 	}
 
 	update(game: Game, entities: Entity[], dt: number) {
+		// Reset collision states
+		for (const entity of entities) {
+			entity.getComponent(Collidable).collisionLeft = false
+			entity.getComponent(Collidable).collisionRight = false
+			entity.getComponent(Collidable).collisionTop = false
+			entity.getComponent(Collidable).collisionBottom = false
+		}
+
 		for (const entity1 of entities) {
 			for (const entity2 of entities) {
 				if (entity1 === entity2) continue
@@ -50,6 +58,8 @@ export class CollisionSystem extends System {
 						const xDiff =
 							entity1HitBox.x - entity2HitBox.x - entity2HitBox.width
 						entity2.position.x += xDiff
+						entity1.getComponent(Collidable).collisionLeft = true
+						entity2.getComponent(Collidable).collisionRight = true
 					}
 					// right
 					else {
@@ -57,6 +67,8 @@ export class CollisionSystem extends System {
 						const xDiff =
 							entity1HitBox.x - entity2HitBox.x + entity1HitBox.width
 						entity2.position.x += xDiff
+						entity1.getComponent(Collidable).collisionRight = true
+						entity2.getComponent(Collidable).collisionLeft = true
 					}
 				} else {
 					// top
@@ -65,6 +77,8 @@ export class CollisionSystem extends System {
 						const yDiff =
 							entity1HitBox.y - entity2HitBox.height - entity2HitBox.y
 						entity2.position.y += yDiff
+						entity1.getComponent(Collidable).collisionTop = true
+						entity2.getComponent(Collidable).collisionBottom = true
 						entity2.vector.y = 0
 					}
 					// bottom
@@ -73,66 +87,11 @@ export class CollisionSystem extends System {
 							entity1HitBox.y + entity1HitBox.height - entity2HitBox.y
 						console.log('bottom')
 						entity2.position.y += yDiff
+						entity1.getComponent(Collidable).collisionBottom = true
+						entity2.getComponent(Collidable).collisionTop = true
 					}
 				}
 			}
 		}
-
-		// for (const entity1 of entities) {
-		// 	for (const entity2 of entities) {
-		// 		if (entity1 === entity2) continue
-
-		// 		const entity1HitBox1 = entity1.calculateHitbox()
-		// 		const entity2HitBox1 = entity2.calculateHitbox()
-
-		// 		const entity1CenterX1 = entity1HitBox1.x + entity1HitBox1.width / 2
-		// 		const entity1CenterY1 = entity1HitBox1.y + entity1HitBox1.height / 2
-
-		// 		const entity2CenterX1 = entity2HitBox1.x + entity2HitBox1.width / 2
-		// 		const entity2CenterY1 = entity2HitBox1.y + entity2HitBox1.height / 2
-
-		// 		const distanceToCentersX1 = Math.abs(entity1CenterX1 - entity2CenterX1)
-		// 		const distanceToCentersY1 = Math.abs(entity1CenterY1 - entity2CenterY1)
-
-		// 		// Is colliding
-		// 		if (
-		// 			distanceToCentersX1 <=
-		// 				entity1HitBox1.width / 2 + entity2HitBox1.width / 2 &&
-		// 			distanceToCentersY1 <=
-		// 				entity1HitBox1.height / 2 + entity2HitBox1.height / 2
-		// 		) {
-		// 			// console.log('COLLISION!!!')
-
-		// 			entity1.position.y -= entity1.vector.y * dt
-		// 			entity2.position.y -= entity2.vector.y * dt
-
-		// 			// const entity1HitBox2 = entity1.calculateHitbox()
-		// 			// const entity2HitBox2 = entity2.calculateHitbox()
-
-		// 			// const entity1CenterX2 = entity1HitBox2.x + entity1HitBox2.width / 2
-		// 			// const entity1CenterY2 = entity1HitBox2.y + entity1HitBox2.height / 2
-
-		// 			// const entity2CenterX2 = entity2HitBox2.x + entity2HitBox2.width / 2
-		// 			// const entity2CenterY2 = entity2HitBox2.y + entity2HitBox2.height / 2
-
-		// 			// const distanceToCentersX2 = Math.abs(
-		// 			// 	entity1CenterX2 - entity2CenterX2
-		// 			// )
-		// 			// const distanceToCentersY2 = Math.abs(
-		// 			// 	entity1CenterY2 - entity2CenterY2
-		// 			// )
-
-		// 			// if (
-		// 			// 	distanceToCentersX2 <
-		// 			// 		entity1HitBox2.width / 2 + entity2HitBox2.width / 2 &&
-		// 			// 	distanceToCentersY2 <
-		// 			// 		entity1HitBox2.height / 2 + entity2HitBox2.height / 2
-		// 			// ) {
-		// 			// 	entity1.position.x -= entity1.vector.x * dt
-		// 			// 	entity2.position.x -= entity2.vector.x * dt
-		// 			// }
-		// 		}
-		// 	}
-		// }
 	}
 }

@@ -71,72 +71,72 @@ export default class Game {
 			this.input.add('leftClick')
 		})
 
-		document.addEventListener('keydown', (e) => {
-			// console.log(e.key)
-			switch (e.key) {
-				case 'Escape': {
-					this.input.add('esc')
-					break
-				}
-				case 'ArrowUp': {
-					this.input.add('up')
-					break
-				}
-				case 'ArrowLeft': {
-					this.input.add('left')
-					break
-				}
-				case 'ArrowDown': {
-					this.input.add('down')
-					break
-				}
-				case 'ArrowRight': {
-					this.input.add('right')
-					break
-				}
-				case 's': {
-					this.input.add('s')
-					break
-				}
-				case 'Enter': {
-					this.input.add('enter')
-					break
-				}
-			}
-		})
+		// document.addEventListener('keydown', (e) => {
+		// 	// console.log(e.key)
+		// 	switch (e.key) {
+		// 		case 'Escape': {
+		// 			this.input.add('esc')
+		// 			break
+		// 		}
+		// 		case 'ArrowUp': {
+		// 			this.input.add('up')
+		// 			break
+		// 		}
+		// 		case 'ArrowLeft': {
+		// 			this.input.add('left')
+		// 			break
+		// 		}
+		// 		case 'ArrowDown': {
+		// 			this.input.add('down')
+		// 			break
+		// 		}
+		// 		case 'ArrowRight': {
+		// 			this.input.add('right')
+		// 			break
+		// 		}
+		// 		case 's': {
+		// 			this.input.add('s')
+		// 			break
+		// 		}
+		// 		case 'Enter': {
+		// 			this.input.add('enter')
+		// 			break
+		// 		}
+		// 	}
+		// })
 
-		document.addEventListener('keyup', (e) => {
-			switch (e.key) {
-				case 'Escape': {
-					this.input.delete('esc')
-					break
-				}
-				case 'ArrowUp': {
-					this.input.delete('up')
-					break
-				}
-				case 'ArrowLeft': {
-					this.input.delete('left')
-					break
-				}
-				case 'ArrowDown': {
-					this.input.delete('down')
-					break
-				}
-				case 'ArrowRight': {
-					this.input.delete('right')
-					break
-				}
-				case 'Enter': {
-					this.input.delete('enter')
-					break
-				}
-				case 's': {
-					this.input.delete('s')
-					break
-				}
-			}
-		})
+		// document.addEventListener('keyup', (e) => {
+		// 	switch (e.key) {
+		// 		case 'Escape': {
+		// 			this.input.delete('esc')
+		// 			break
+		// 		}
+		// 		case 'ArrowUp': {
+		// 			this.input.delete('up')
+		// 			break
+		// 		}
+		// 		case 'ArrowLeft': {
+		// 			this.input.delete('left')
+		// 			break
+		// 		}
+		// 		case 'ArrowDown': {
+		// 			this.input.delete('down')
+		// 			break
+		// 		}
+		// 		case 'ArrowRight': {
+		// 			this.input.delete('right')
+		// 			break
+		// 		}
+		// 		case 'Enter': {
+		// 			this.input.delete('enter')
+		// 			break
+		// 		}
+		// 		case 's': {
+		// 			this.input.delete('s')
+		// 			break
+		// 		}
+		// 	}
+		// })
 		// gameScreenEl.addEventListener('mousemove', (e) => {
 		// 	this.mousePos = {
 		// 		x: e.offsetX,
