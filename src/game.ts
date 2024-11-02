@@ -193,8 +193,8 @@ export default class Game {
 		this.input.clear()
 	}
 
-	draw(mainCtx: CanvasRenderingContext2D) {
-		this.marioSystem.draw(mainCtx)
+	draw(mainCtx: CanvasRenderingContext2D, dt: number) {
+		this.marioSystem.draw(mainCtx, dt)
 		return
 
 		switch (this.state) {

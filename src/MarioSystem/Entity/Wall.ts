@@ -38,6 +38,17 @@ export class Wall extends Entity {
 		)
 		ctx.stroke()
 
+		// const hitbox = this.calculateHitbox()
+
+		// ctx.strokeStyle = 'yellow'
+		// ctx.strokeRect(
+		// 	hitbox.x + 1,
+		// 	hitbox.y + 1,
+		// 	hitbox.width - 2,
+		// 	hitbox.height - 2
+		// )
+		// ctx.stroke()
+
 		ctx.restore()
 	}
 }

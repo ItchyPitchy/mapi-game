@@ -11,6 +11,8 @@ import {
 	drawGunBodyPresets,
 	jumpDrawnGunBodyPresets,
 	jumpLegsPresets,
+	leapStowedGunBodyPresets,
+	leapStowedGunLegsPresets,
 	sprintStowedGunBodyPresets,
 	sprintStowedGunLegsPresets,
 	spriteHeight,
@@ -29,6 +31,7 @@ export type Actions = {
 	draw: ActionState
 	stowe: ActionState
 	jump: ActionState
+	leap: ActionState
 	ascend: ActionState
 	descend: ActionState
 	crouch: ActionState
@@ -48,6 +51,7 @@ export class Player extends Entity {
 		draw: { state: 'not-in-use', durationMs: 0, completeMs: 750 },
 		stowe: { state: 'not-in-use', durationMs: 0, completeMs: 750 },
 		jump: { state: 'not-in-use', durationMs: 0, completeMs: 600 },
+		leap: { state: 'not-in-use', durationMs: 0, completeMs: 1000 },
 		ascend: { state: 'not-in-use', durationMs: 0, completeMs: 1000 },
 		descend: { state: 'not-in-use', durationMs: 0, completeMs: 1000 },
 		crouch: { state: 'not-in-use', durationMs: 0, completeMs: 1000 },
@@ -78,6 +82,18 @@ export class Player extends Entity {
 		action: { completeMs: number; durationMs: number } | null
 	} {
 		switch (true) {
+			case this.actions.jump.state === 'in-use' &&
+				this.weapon.state === 'drawn':
+				return { presets: jumpDrawnGunBodyPresets, action: this.actions.jump }
+			case this.actions.jump.state === 'in-use' &&
+				this.weapon.state === 'not-drawn':
+				return { presets: jumpDrawnGunBodyPresets, action: this.actions.jump }
+			case this.actions.leap.state === 'in-use' &&
+				this.weapon.state === 'not-drawn':
+				return { presets: leapStowedGunBodyPresets, action: this.actions.leap }
+			case this.actions.leap.state === 'in-use' &&
+				this.weapon.state === 'not-drawn':
+				return { presets: ascendDrawnGunBodyPresets, action: this.actions.leap }
 			case this.actions.ascend.state === 'in-use':
 				return {
 					presets: ascendDrawnGunBodyPresets,
@@ -88,12 +104,6 @@ export class Player extends Entity {
 					presets: descendDrawnGunBodyPresets,
 					action: this.actions.descend,
 				}
-			case this.actions.jump.state === 'in-use' &&
-				this.weapon.state === 'drawn':
-				return { presets: jumpDrawnGunBodyPresets, action: this.actions.jump }
-			case this.actions.jump.state === 'in-use' &&
-				this.weapon.state === 'not-drawn':
-				return { presets: jumpDrawnGunBodyPresets, action: this.actions.jump }
 			case this.actions.stowe.state === 'in-use':
 				return { presets: stoweGunBodyPresets, action: this.actions.stowe }
 			case this.actions.draw.state === 'in-use':
@@ -130,6 +140,18 @@ export class Player extends Entity {
 		action: { completeMs: number; durationMs: number } | null
 	} {
 		switch (true) {
+			case this.actions.jump.state === 'in-use' &&
+				this.weapon.state === 'drawn':
+				return { presets: jumpLegsPresets, action: this.actions.jump }
+			case this.actions.jump.state === 'in-use' &&
+				this.weapon.state === 'not-drawn':
+				return { presets: jumpLegsPresets, action: this.actions.jump }
+			case this.actions.leap.state === 'in-use' &&
+				this.weapon.state === 'not-drawn':
+				return { presets: leapStowedGunLegsPresets, action: this.actions.leap }
+			case this.actions.leap.state === 'in-use' &&
+				this.weapon.state === 'not-drawn':
+				return { presets: ascendDrawnGunLegsPresets, action: this.actions.leap }
 			case this.actions.ascend.state === 'in-use':
 				return {
 					presets: ascendDrawnGunLegsPresets,
@@ -140,12 +162,6 @@ export class Player extends Entity {
 					presets: descendDrawnGunLegsPresets,
 					action: this.actions.descend,
 				}
-			case this.actions.jump.state === 'in-use' &&
-				this.weapon.state === 'drawn':
-				return { presets: jumpLegsPresets, action: this.actions.jump }
-			case this.actions.jump.state === 'in-use' &&
-				this.weapon.state === 'not-drawn':
-				return { presets: jumpLegsPresets, action: this.actions.jump }
 			case this.actions.walk.state === 'in-use' &&
 				this.weapon.state === 'drawn':
 				return { presets: walkLegsPresets, action: this.actions.walk }
@@ -182,7 +198,6 @@ export class Player extends Entity {
 
 		let scaleXMultiplier = 1
 
-		console.log(this.direction)
 		if (this.direction === 'right') scaleXMultiplier = -1
 		if (this.direction === 'left') scaleXMultiplier = 1
 

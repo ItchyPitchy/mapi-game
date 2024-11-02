@@ -58,7 +58,7 @@ export class Entity {
 		throw new Error('#calculateHitbox not implemented yet')
 	}
 
-	draw(ctx: CanvasRenderingContext2D) {
+	draw(ctx: CanvasRenderingContext2D, dt: number) {
 		throw new Error('#draw not implemented yet')
 	}
 }

@@ -9,8 +9,8 @@ mainCtx.imageSmoothingQuality = 'high'
 // const GAME_WIDTH = window.innerWidth
 // const GAME_HEIGHT = window.innerHeight
 
-const GAME_WIDTH = 800
-const GAME_HEIGHT = 600
+const GAME_WIDTH = window.innerWidth
+const GAME_HEIGHT = window.innerHeight
 
 mainCanvas.width = GAME_WIDTH
 mainCanvas.height = GAME_HEIGHT
@@ -27,7 +27,7 @@ function gameLoop(timestamp: number) {
 	mainCtx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
 
 	game.update(dt)
-	game.draw(mainCtx)
+	game.draw(mainCtx, dt)
 
 	requestAnimationFrame(gameLoop)
 }

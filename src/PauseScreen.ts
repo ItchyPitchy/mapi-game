@@ -43,25 +43,19 @@ export class PauseScreen {
 
 	constructor(public game: Game) {
 		const optionsEl = getDocumentElementById('options')
-
 		for (const option of this.options) {
 			const optionEl = document.createElement('span')
-
 			if (option.id === this.selectedOption) {
 				optionEl.setAttribute('data-selected', 'selected')
 			}
-
 			optionEl.setAttribute('data-optionId', option.id)
 			optionEl.textContent = option.text
-
 			optionEl.addEventListener('mouseenter', () => {
 				this.handleSwitchSelectedOption(() => option)
 			})
-
 			optionEl.addEventListener('click', () => {
 				this.handleSubmitOption()
 			})
-
 			optionsEl.appendChild(optionEl)
 		}
 	}
@@ -80,21 +74,16 @@ export class PauseScreen {
 		const currentlySelectedOptionEl = optionsEl.querySelector(
 			"[data-selected='selected']"
 		)
-
 		if (currentlySelectedOptionEl) {
 			currentlySelectedOptionEl.removeAttribute('data-selected')
-
 			const optionId = currentlySelectedOptionEl.getAttribute('data-optionId')
 			const optionIndex = this.options.findIndex(
 				(option) => option.id === optionId
 			)
-
 			const nextOption = cb(optionIndex === -1 ? null : optionIndex)
-
 			const nextSelectedEl = optionsEl.querySelector(
 				`[data-optionId='${nextOption.id}']`
 			)
-
 			if (nextSelectedEl) {
 				this.selectedOption = nextOption.id
 				nextSelectedEl.setAttribute('data-selected', 'selected')

@@ -1,11 +1,11 @@
 body {
   padding: 0;
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
+  /* display: flex; */
+  /* flex-direction: column;
+  justify-content: center; */
+  /* align-items: center; */
+  /* min-height: 100vh; */
 }
 
 h1 {
@@ -16,27 +16,17 @@ h1 {
   font-weight: bold;
 }
 
-.game-screen-container {
+/* .game-screen-container {
   position: relative;
   width: 800;
   height: 600;
-}
+} */
 
 canvas {
-  position: absolute;
+  /* position: absolute; */
 }
 
 #gameScreen {
-}
-
-#sightCanvas {
-  z-index: 999;
-  pointer-events: none;
-}
-
-#shadowCanvas {
-  z-index: 555;
-  pointer-events: none;
 }
 
 #pauseScreen {

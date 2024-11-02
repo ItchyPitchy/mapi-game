@@ -1,10 +1,9 @@
-import { Collidable } from '../Component/Collidable'
 import { Actions, Player } from '../Entity/Player/Player'
 
 export type Input =
 	// | 'esc'
 	// | 'enter'
-	'up' | 'left' | 'right' | 'down' | 'S'
+	'up' | 'left' | 'right' | 'down' | 'S' | 'F'
 
 export type TranslatedAction =
 	// | 'esc'
@@ -19,6 +18,7 @@ export type TranslatedAction =
 	| 'stowe-weapon'
 	| 'jump'
 	| 'leap'
+	| 'shoot'
 
 export class PlayerInputHandler {
 	private input = new Set<Input>()
@@ -40,6 +40,8 @@ export class PlayerInputHandler {
 					return this.input.add('right')
 				case 's':
 					return this.input.add('S')
+				case 'f':
+					return this.input.add('F')
 			}
 		})
 
@@ -59,24 +61,27 @@ export class PlayerInputHandler {
 					return this.input.delete('right')
 				case 's':
 					return this.input.delete('S')
+				case 'f':
+					return this.input.delete('F')
 			}
 		})
 	}
 
-	public getActions(player: Player) {
-		return this.determineActions(this.input, player)
+	public getActions(player: Player, cooldowns: Map<TranslatedAction, number>) {
+		return this.determineActions(this.input, player, cooldowns)
 	}
 
 	private determineActions(
 		inputs: Set<Input>,
-		player: Player
+		player: Player,
+		cooldowns: Map<TranslatedAction, number>
 	): Set<TranslatedAction> {
 		const actions: Set<TranslatedAction> = new Set()
 
 		for (const input of inputs) {
 			switch (input) {
 				case 'left': {
-					const nonCompatibleActions: Array<keyof Actions> = ['jump']
+					const nonCompatibleActions: Array<keyof Actions> = ['jump', 'leap']
 
 					if (
 						nonCompatibleActions.every(
@@ -98,7 +103,7 @@ export class PlayerInputHandler {
 					break
 				}
 				case 'right': {
-					const nonCompatibleActions: Array<keyof Actions> = ['jump']
+					const nonCompatibleActions: Array<keyof Actions> = ['jump', 'leap']
 
 					if (
 						nonCompatibleActions.every(
@@ -126,6 +131,7 @@ export class PlayerInputHandler {
 				case 'up': {
 					const nonCompatibleActions: Array<keyof Actions> = [
 						'jump',
+						'leap',
 						'ascend',
 						'descend',
 						'stowe',
@@ -151,6 +157,7 @@ export class PlayerInputHandler {
 				case 'S': {
 					const nonCompatibleActions: Array<keyof Actions> = [
 						'jump',
+						'leap',
 						'ascend',
 						'descend',
 						'stowe',
@@ -173,8 +180,34 @@ export class PlayerInputHandler {
 
 					break
 				}
+				case 'F': {
+					const nonCompatibleActions: Array<keyof Actions> = [
+						'jump',
+						'ascend',
+						'descend',
+						'stowe',
+						'draw',
+						'leap'
+					]
+
+					if (
+						nonCompatibleActions.every(
+							(action) => player.actions[action].state === 'not-in-use'
+						)
+					) {
+						if (player.weapon.state === 'drawn') {
+							actions.add('shoot')
+						}
+					}
+
+					break
+				}
 			}
 		}
+
+		actions.forEach((action) => {
+			if (cooldowns.has(action)) actions.delete(action)
+		})
 
 		return actions
 	}

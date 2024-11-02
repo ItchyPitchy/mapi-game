@@ -6,6 +6,8 @@ import stoweGunBodyPng from '../../../assets/stowe_gun_body-Sheet.png'
 import drawGunBodyPng from '../../../assets/draw_gun_body-Sheet.png'
 import jumpDrawnGunBodyPng from '../../../assets/jump_drawn_gun_body_v2-Sheet.png'
 import jumpDrawnGunLegsPng from '../../../assets/jump_drawn_gun_legs-Sheet.png'
+import leapStowedGunBodyPng from '../../../assets/leap_stowed_gun_body-Sheet.png'
+import leapStowedGunLegsPng from '../../../assets/leap_stowed_gun_legs-Sheet.png'
 import ascendDrawnGunBodyPng from '../../../assets/ascend_drawn_gun_body.png'
 import ascendDrawnGunLegsPng from '../../../assets/ascend_drawn_gun_legs.png'
 import staleStowedGunBodyPng from '../../../assets/stale_stowed_gun_body.png'
@@ -69,6 +71,20 @@ jumpDrawnGunLegsImg.src = jumpDrawnGunLegsPng
 export const jumpLegsPresets = {
 	sprites: 5,
 	img: jumpDrawnGunLegsImg,
+}
+
+const leapStowedGunBodyImg = new Image()
+leapStowedGunBodyImg.src = leapStowedGunBodyPng
+export const leapStowedGunBodyPresets = {
+	sprites: 5,
+	img: leapStowedGunBodyImg,
+}
+
+const leapStowedGunLegsImg = new Image()
+leapStowedGunLegsImg.src = leapStowedGunLegsPng
+export const leapStowedGunLegsPresets = {
+	sprites: 7,
+	img: leapStowedGunLegsImg,
 }
 
 const ascendDrawnGunBodyImg = new Image()
