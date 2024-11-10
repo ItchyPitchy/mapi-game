@@ -19,6 +19,7 @@ export type TranslatedAction =
 	| 'jump'
 	| 'leap'
 	| 'shoot'
+	| 'butt-attack'
 
 export class PlayerInputHandler {
 	private input = new Set<Input>()
@@ -125,7 +126,26 @@ export class PlayerInputHandler {
 					break
 				}
 				case 'down': {
-					// Crouch not implemented yet
+					const nonCompatibleActions: Array<keyof Actions> = [
+						'jump',
+						'buttAttack',
+						'leap',
+						// 'ascend',
+						'stowe',
+						'draw',
+						'shoot',
+					]
+
+					if (
+						nonCompatibleActions.every(
+							(action) => player.actions[action].state === 'not-in-use'
+						)
+					) {
+						if (player.weapon.state === 'drawn') {
+							actions.add('butt-attack')
+						}
+					}
+
 					break
 				}
 				case 'up': {
@@ -136,6 +156,7 @@ export class PlayerInputHandler {
 						'descend',
 						'stowe',
 						'draw',
+						'shoot',
 					]
 
 					if (
@@ -150,6 +171,10 @@ export class PlayerInputHandler {
 						if (player.weapon.state === 'drawn') {
 							actions.add('stowe-weapon')
 						}
+
+						actions.delete('shoot')
+						actions.delete('jump')
+						actions.delete('leap')
 					}
 
 					break
@@ -160,8 +185,9 @@ export class PlayerInputHandler {
 						'leap',
 						'ascend',
 						'descend',
-						'stowe',
+						// 'stowe',
 						'draw',
+						'shoot',
 					]
 
 					if (
@@ -169,13 +195,17 @@ export class PlayerInputHandler {
 							(action) => player.actions[action].state === 'not-in-use'
 						)
 					) {
-						if (player.weapon.state === 'not-drawn') {
+						if (player.weapon.state === 'not-drawn' || player.actions.stowe.state === 'in-use') {
 							actions.add('leap')
 						}
 
 						if (player.weapon.state === 'drawn') {
 							actions.add('jump')
 						}
+						
+						actions.delete('shoot')
+						actions.delete('draw-weapon')
+						actions.delete('stowe-weapon')
 					}
 
 					break
@@ -187,7 +217,7 @@ export class PlayerInputHandler {
 						'descend',
 						'stowe',
 						'draw',
-						'leap'
+						'leap',
 					]
 
 					if (
@@ -196,6 +226,7 @@ export class PlayerInputHandler {
 						)
 					) {
 						if (player.weapon.state === 'drawn') {
+							actions.delete('jump')
 							actions.add('shoot')
 						}
 					}

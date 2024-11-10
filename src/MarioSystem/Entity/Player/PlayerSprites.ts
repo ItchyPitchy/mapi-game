@@ -13,6 +13,8 @@ import ascendDrawnGunLegsPng from '../../../assets/ascend_drawn_gun_legs.png'
 import staleStowedGunBodyPng from '../../../assets/stale_stowed_gun_body.png'
 import staleDrawnGunBodyPng from '../../../assets/stale_drawn_gun_body.png'
 import staleStandingLegsPng from '../../../assets/stale_standing_legs.png'
+import buttAttackDrawnGunWholeBodyPng from '../../../assets/butt-attack-drawn-gun-whole-body-Sheet.png'
+import buttAttackDrawnGunStaleWholeBodyPng from '../../../assets/butt-attack-drawn-gun-stale-whole-body.png'
 
 export const spriteWidth = 20
 export const spriteHeight = 28
@@ -134,4 +136,18 @@ staleStandingLegsImg.src = staleStandingLegsPng
 export const staleStandingLegsPresets = {
 	sprites: 1,
 	img: staleStandingLegsImg,
+}
+
+const buttAttackDrawnGunWholeBodyImg = new Image()
+buttAttackDrawnGunWholeBodyImg.src = buttAttackDrawnGunWholeBodyPng
+export const buttAttackDrawnGunWholeBodyImgPresets = {
+	sprites: 7,
+	img: buttAttackDrawnGunWholeBodyImg,
+}
+
+const buttAttackDrawnGunStaleWholeBodyImg = new Image()
+buttAttackDrawnGunStaleWholeBodyImg.src = buttAttackDrawnGunStaleWholeBodyPng
+export const buttAttackDrawnGunStaleWholeBodyImgPresets = {
+	sprites: 1,
+	img: buttAttackDrawnGunStaleWholeBodyImg,
 }

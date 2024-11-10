@@ -56,10 +56,11 @@ export default class Game {
 	// entities: Entity[] = []
 	public input = new Set<Input>()
 	public state: GameState = 'RUNNING'
+	public visible = true
 
 	constructor(
-		readonly gameWidth: number,
-		readonly gameHeight: number,
+		public gameWidth: number,
+		public gameHeight: number,
 		readonly mainCtx: CanvasRenderingContext2D,
 		public mousePos = { x: gameWidth / 2, y: gameHeight / 2 }
 	) {
@@ -67,12 +68,24 @@ export default class Game {
 
 		this.marioSystem = new MarioSystem(this)
 
+		window.addEventListener("resize", () => {
+			this.gameHeight = gameScreenEl.clientHeight
+			this.gameWidth = gameScreenEl.clientWidth
+		})
+
+		window.addEventListener("visibilitychange", () => {
+			if (document.hidden) {
+				this.visible = false
+			} else {
+				this.visible = true
+			}
+		})
+
 		gameScreenEl.addEventListener('click', () => {
 			this.input.add('leftClick')
 		})
 
 		// document.addEventListener('keydown', (e) => {
-		// 	// console.log(e.key)
 		// 	switch (e.key) {
 		// 		case 'Escape': {
 		// 			this.input.add('esc')
@@ -150,6 +163,8 @@ export default class Game {
 	start() {}
 
 	update(dt: number) {
+		if (!this.visible) return 
+
 		this.marioSystem.update(dt)
 		return
 

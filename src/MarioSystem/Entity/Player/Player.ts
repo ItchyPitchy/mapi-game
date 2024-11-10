@@ -3,9 +3,13 @@ import { Vector } from '../../../shared/Vector'
 import { Entity } from '../Entity'
 import { Gravitational } from '../../Component/Gravitational'
 import { Collidable } from '../../Component/Collidable'
+import { IStats, Stats } from '../../Component/Stats'
+
 import {
 	ascendDrawnGunBodyPresets,
 	ascendDrawnGunLegsPresets,
+	buttAttackDrawnGunStaleWholeBodyImgPresets,
+	buttAttackDrawnGunWholeBodyImgPresets,
 	descendDrawnGunBodyPresets,
 	descendDrawnGunLegsPresets,
 	drawGunBodyPresets,
@@ -35,6 +39,8 @@ export type Actions = {
 	ascend: ActionState
 	descend: ActionState
 	crouch: ActionState
+	shoot: ActionState
+	buttAttack: ActionState
 }
 
 type ActionState = {
@@ -55,15 +61,27 @@ export class Player extends Entity {
 		ascend: { state: 'not-in-use', durationMs: 0, completeMs: 1000 },
 		descend: { state: 'not-in-use', durationMs: 0, completeMs: 1000 },
 		crouch: { state: 'not-in-use', durationMs: 0, completeMs: 1000 },
+		shoot: { state: 'not-in-use', durationMs: 0, completeMs: 1000 },
+		buttAttack: { state: 'not-in-use', durationMs: 0, completeMs: 420 },
 	}
 	public weapon: { state: 'not-drawn' | 'drawn' } = {
 		state: 'drawn',
 	}
 
 	constructor(position: Point, size = { height: 140, width: 100 }) {
+		const stats: Omit<IStats, 'maxHp' | 'maxMana'> = {
+			strength: 1,
+			dexterity: 1,
+			intelligence: 1,
+			speed: 1,
+			hp: 100,
+			mana: 100,
+		}
+
 		super(position, size, new Vector(0, 0), [
 			new Gravitational(1000),
-			new Collidable(0, false),
+			new Collidable('player', ['wall']),
+			new Stats(stats)
 		])
 	}
 
@@ -82,6 +100,10 @@ export class Player extends Entity {
 		action: { completeMs: number; durationMs: number } | null
 	} {
 		switch (true) {
+			case this.actions.buttAttack.state === 'in-use':
+				return { presets: buttAttackDrawnGunWholeBodyImgPresets, action: this.actions.buttAttack }
+			case this.actions.buttAttack.state === 'complete':
+				return { presets: buttAttackDrawnGunStaleWholeBodyImgPresets, action: null }
 			case this.actions.jump.state === 'in-use' &&
 				this.weapon.state === 'drawn':
 				return { presets: jumpDrawnGunBodyPresets, action: this.actions.jump }
@@ -138,7 +160,9 @@ export class Player extends Entity {
 	decideLegsSprite(): {
 		presets: { img: HTMLImageElement; sprites: number }
 		action: { completeMs: number; durationMs: number } | null
-	} {
+	} | null {
+		if (this.actions.buttAttack.state === 'in-use' || this.actions.buttAttack.state === 'complete') return null
+
 		switch (true) {
 			case this.actions.jump.state === 'in-use' &&
 				this.weapon.state === 'drawn':
@@ -188,11 +212,62 @@ export class Player extends Entity {
 	draw(ctx: CanvasRenderingContext2D) {
 		ctx.save()
 
-		// const hitbox = this.calculateHitbox()
+		const hitbox = this.calculateHitbox()
 
 		// ctx.strokeStyle = 'yellow'
 		// ctx.strokeRect(hitbox.x, hitbox.y, hitbox.width, hitbox.height)
 		// ctx.stroke()
+
+		const barHeight = 10
+
+		ctx.fillStyle = 'grey'
+		ctx.fillRect(
+			hitbox.x,
+			hitbox.y - barHeight * 2,
+			hitbox.width,
+			barHeight,
+		)
+
+		ctx.fillStyle = 'red'
+		ctx.fillRect(
+			hitbox.x,
+			hitbox.y - barHeight * 2,
+			hitbox.width * (this.getComponent(Stats).hp / this.getComponent(Stats).maxHp),
+			barHeight,
+		)
+
+		ctx.fillStyle = 'grey'
+		ctx.fillRect(
+			hitbox.x,
+			hitbox.y - barHeight,
+			hitbox.width,
+			barHeight,
+		)
+
+		ctx.fillStyle = 'blue'
+		ctx.fillRect(
+			hitbox.x,
+			hitbox.y - barHeight,
+			hitbox.width * (this.getComponent(Stats).mana / this.getComponent(Stats).maxMana),
+			barHeight,
+		)
+
+		ctx.lineWidth = 2
+		ctx.strokeStyle = 'yellow'
+		ctx.strokeRect(
+			hitbox.x,
+			hitbox.y - barHeight * 2,
+			hitbox.width,
+			barHeight,
+		)
+		
+		ctx.strokeStyle = 'yellow'
+		ctx.strokeRect(
+			hitbox.x,
+			hitbox.y - barHeight,
+			hitbox.width,
+			barHeight,
+		)
 
 		ctx.imageSmoothingEnabled = false
 
@@ -231,29 +306,32 @@ export class Player extends Entity {
 
 		const legsSprite = this.decideLegsSprite()
 
-		const legsPercentProgress =
-			legsSprite.action === null
-				? 0
-				: legsSprite.action.durationMs > legsSprite.action.completeMs
-				? (legsSprite.action.durationMs % legsSprite.action.completeMs) /
-				  legsSprite.action.completeMs
-				: legsSprite.action.durationMs / legsSprite.action.completeMs
 
-		const legsSpriteStep = Math.floor(
-			legsPercentProgress * legsSprite.presets.sprites
-		)
+		if (legsSprite) {
+			const legsPercentProgress =
+				legsSprite.action === null
+					? 0
+					: legsSprite.action.durationMs > legsSprite.action.completeMs
+					? (legsSprite.action.durationMs % legsSprite.action.completeMs) /
+						legsSprite.action.completeMs
+					: legsSprite.action.durationMs / legsSprite.action.completeMs
 
-		ctx.drawImage(
-			legsSprite.presets.img,
-			spriteWidth * legsSpriteStep,
-			0,
-			spriteWidth,
-			spriteHeight,
-			scaleXMultiplier * this.position.x - this.size.width / 2,
-			this.position.y - this.size.height,
-			this.size.width,
-			this.size.height
-		)
+			const legsSpriteStep = Math.floor(
+				legsPercentProgress * legsSprite.presets.sprites
+			)
+
+			ctx.drawImage(
+				legsSprite.presets.img,
+				spriteWidth * legsSpriteStep,
+				0,
+				spriteWidth,
+				spriteHeight,
+				scaleXMultiplier * this.position.x - this.size.width / 2,
+				this.position.y - this.size.height,
+				this.size.width,
+				this.size.height
+			)
+		}
 
 		ctx.restore()
 	}

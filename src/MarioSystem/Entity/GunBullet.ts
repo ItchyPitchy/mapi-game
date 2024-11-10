@@ -1,9 +1,15 @@
+import Game from '../../game'
 import { Point } from '../../types'
 import { Vector } from '../../shared/Vector'
 import { Entity } from './Entity'
 
-import gunBulletPng from '../../assets/gun_bullet.png'
+import { BloodSplatter } from './Zombie/BloodSplatter'
+import { Collidable } from '../Component/Collidable'
+import { Delete } from '../Component/Delete'
+import { Damage } from '../Component/Damage'
+
 import gunBulletTrailPng from '../../assets/gun_bullet_trail-Sheet.png'
+import gunBulletPng from '../../assets/gun_bullet.png'
 
 const gunBulletImg = new Image()
 gunBulletImg.src = gunBulletPng
@@ -26,11 +32,55 @@ const gunBulletTrailPresets = {
 export class GunBullet extends Entity {
   private bulletTrailAnimation = { durationMs: 225, progressMs: 0 }
   constructor (position: Point, vector: Vector, public fallOfTimeMs: number = 3000 ) {
-    super(position, { width: gunBulletImgPresets.width * 5, height: gunBulletImgPresets.height * 5 }, vector)
+		const onTrigger = (self: Entity, other: Entity, game: Game) => {
+			const otherHitbox = other.calculateHitbox()
+			const selfHitbox = self.calculateHitbox()
+			const selfDirection = self.vector.x <= 0 ? 'left' : 'right'
+			const hitOriginPos = selfDirection === 'left' ? { x: selfHitbox.x, y: selfHitbox.y } : { x: selfHitbox.x + selfHitbox.width, y: selfHitbox.y }
+			const hitPosition = selfDirection === 'left' ? { x: hitOriginPos.x - otherHitbox.width, y: hitOriginPos.y } : { x: hitOriginPos.x + otherHitbox.width, y: hitOriginPos.y }
+
+			self.addComponents(new Delete())
+			other.addComponents(new Damage(20, hitPosition, selfDirection))
+
+			const durationMs = 500
+			const bloodSplatter = new BloodSplatter(hitPosition, selfDirection, durationMs)
+			bloodSplatter.addComponents(new Delete(durationMs))
+
+			game.marioSystem.entities.push(bloodSplatter)
+		}
+
+    super(
+			position,
+			{ width: gunBulletImgPresets.width * 5, height: gunBulletImgPresets.height * 5 },
+			vector,
+			[
+				new Collidable(
+					'playerAttack',
+					['mob'],
+					true,
+					onTrigger,
+				)
+			]
+		)
   }
+
+	calculateHitbox(): { x: number; y: number; width: number; height: number } {
+		const x = this.position.x
+		const y = this.position.y
+		const width = this.size.width
+		const height = this.size.height
+
+		return { x, y, width, height }
+	}
 
   draw(ctx: CanvasRenderingContext2D, dt: number) {
     ctx.save()
+
+		// const hitbox = this.calculateHitbox()
+
+		// ctx.strokeStyle = 'yellow'
+		// ctx.strokeRect(hitbox.x, hitbox.y, hitbox.width, hitbox.height)
+		// ctx.stroke()
 
     const scaleXMultiplier = this.vector.x > 0 ? -1 : 1
 
@@ -70,8 +120,9 @@ export class GunBullet extends Entity {
 			this.size.height
 		)
 
-    this.bulletTrailAnimation.progressMs += dt * 1000
-    this.fallOfTimeMs -= dt * 1000
     ctx.restore()
+    
+		this.bulletTrailAnimation.progressMs += dt * 1000
+    this.fallOfTimeMs -= dt * 1000
   }
 }

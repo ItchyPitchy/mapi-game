@@ -1,16 +1,22 @@
+import Game from '../../game'
+import { Entity } from '../Entity/Entity'
 import { Component } from './Component'
 
-export class Collidable extends Component {
-	public collisionLeft = false
-	public collisionRight = false
-	public collisionTop = false
-	public collisionBottom = false
-	public initialCollisionLeft = false
-	public initialCollisionRight = false
-	public initialCollisionTop = false
-	public initialCollisionBottom = false
+type CollisionGroup = 'wall' | 'mob' | 'player' | 'playerAttack' | 'cadaver'
 
-	constructor(public restitution: number, public stationary: boolean = true) {
+export class Collidable extends Component {
+	public collisionLeft: Array<{ entity: Entity, initialCollision: boolean }> = []
+	public collisionRight: Array<{ entity: Entity, initialCollision: boolean }> = []
+	public collisionTop: Array<{ entity: Entity, initialCollision: boolean }> = []
+	public collisionBottom: Array<{ entity: Entity, initialCollision: boolean }> = []
+
+	constructor(
+		public collisionGroup: CollisionGroup,
+		public collidesWith: CollisionGroup[] = [],
+		public stationary: boolean = false,
+		public onCollision: (self: Entity, other: Entity, game: Game) => void = () => {},
+		public restitution: number = 0,
+	) {
 		super()
 	}
 }

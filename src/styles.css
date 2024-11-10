@@ -23,11 +23,11 @@ h1 {
 } */
 
 canvas {
+  display: block;
   /* position: absolute; */
 }
 
-#gameScreen {
-}
+#gameScreen {}
 
 #pauseScreen {
   position: absolute;

@@ -47,10 +47,9 @@ export class Entity {
 		return false
 	}
 
-	removeComponent<T extends Component>(type: T) {
+	removeComponent(component: Component) {
 		this.components = this.components.filter(
-			// @ts-ignore
-			(component) => component instanceof type
+			(c) => c !== component
 		)
 	}
 

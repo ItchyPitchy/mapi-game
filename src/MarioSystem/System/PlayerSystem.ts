@@ -6,6 +6,7 @@ import { PlayerInputHandler, TranslatedAction } from './PlayerInputHandler.js'
 import { Collidable } from '../Component/Collidable.js'
 import { GunBullet } from '../Entity/GunBullet.js'
 import { Vector } from '../../shared/Vector.js'
+import { GroundCrumbleAttack } from '../Entity/Player/GroundCrumbleAttack.js'
 
 export class PlayerSystem extends System {
 	inputHandler = new PlayerInputHandler()
@@ -28,9 +29,9 @@ export class PlayerSystem extends System {
 			this.updateActionTimers(entity, dt)
 			this.updateActionCooldowns(dt)
 
-			// 1. Reset player states based on input
-
 			const actions = this.inputHandler.getActions(entity, this.actionCooldowns)
+			
+			// 1. Reset player states based on input
 
 			const walkActions: TranslatedAction[] = ['walk-left', 'walk-right']
 			const sprintActions: TranslatedAction[] = ['sprint-left', 'sprint-right']
@@ -40,7 +41,7 @@ export class PlayerSystem extends System {
 					actions.has(action)
 				) &&
 				entity.hasComponent(Collidable) &&
-				entity.getComponent(Collidable).collisionBottom
+				entity.getComponent(Collidable).collisionBottom.length !== 0
 			) {
 				entity.vector.x = 0
 			}
@@ -64,21 +65,38 @@ export class PlayerSystem extends System {
 
 			if (
 				entity.hasComponent(Collidable) &&
-				entity.getComponent(Collidable).initialCollisionBottom
+				entity.getComponent(Collidable).collisionBottom.every((collision) => collision.initialCollision === true)
 			) {
 				this.actionCooldowns.set('leap', 500)
 			}
 
+			if (entity.hasComponent(Collidable) && entity.getComponent(Collidable).collisionBottom.length === 0) {
+				if (entity.getComponent(Collidable).collisionLeft.length !== 0 && entity.getComponent(Collidable).collisionLeft.every((collision) => collision.initialCollision === true)) {
+					entity.vector.x = 200
+				}
+				
+				if (entity.getComponent(Collidable).collisionRight.length !== 0 && entity.getComponent(Collidable).collisionRight.every((collision) => collision.initialCollision === true)) {
+					entity.vector.x = -200
+				}
+			}
+
 			if (
 				entity.hasComponent(Collidable) &&
-				entity.getComponent(Collidable).collisionBottom
+				entity.getComponent(Collidable).collisionBottom.length !== 0
 			) {
+				if (entity.actions.buttAttack.state === 'complete') {
+					const attack = new GroundCrumbleAttack({ x: entity.position.x, y: entity.position.y })
+					game.marioSystem.entities.push(attack)
+				}
+
 				entity.actions.ascend.state = 'not-in-use'
 				entity.actions.ascend.durationMs = 0
 				entity.actions.descend.state = 'not-in-use'
 				entity.actions.descend.durationMs = 0
 				entity.actions.leap.state = 'not-in-use'
 				entity.actions.leap.durationMs = 0
+				entity.actions.buttAttack.state = 'not-in-use'
+				entity.actions.buttAttack.durationMs = 0
 				entity.vector.y = 0
 			}
 
@@ -99,27 +117,44 @@ export class PlayerSystem extends System {
 				entity.weapon.state = 'drawn'
 			}
 
+			if (entity.vector.y > 0) {
+				entity.actions.ascend.state = 'not-in-use'
+				entity.actions.ascend.durationMs = 0
+			}
+
 			if (
 				entity.hasComponent(Collidable) &&
-				!entity.getComponent(Collidable).collisionBottom &&
+				entity.getComponent(Collidable).collisionBottom.length === 0 &&
 				entity.vector.y > 0
 			) {
 				entity.actions.descend.state = 'in-use'
+			}
+			
+			if (
+				entity.actions.buttAttack.state === 'in-use'
+			) {
+				entity.vector.y = 0
+				entity.vector.x = 0
+			}
+
+			if (entity.actions.buttAttack.state === 'complete') {
+				entity.vector.y = 1400
 			}
 
 			// 3. Validate input and execute actions
 
 			if (actions.has('shoot')) {
-				const vectorX = entity.direction === 'right' ? 700 : -700
+				const vectorX = entity.direction === 'right' ? 1000 : -1000
 				const positionX = entity.direction === 'right' ?  entity.position.x + entity.size.width / 2 :  entity.position.x - entity.size.width / 2
 				game.marioSystem.entities.push(new GunBullet({ x: positionX, y: entity.position.y - entity.size.height / 2 - entity.size.height / 50 }, new Vector(vectorX, 0)))
-				this.actionCooldowns.set('shoot', 500)
+				this.actionCooldowns.set('shoot', 100)
+				entity.actions.shoot.state = 'in-use'
 			}
 
 			if (actions.has('walk-left')) {
 				if (
 					entity.hasComponent(Collidable) &&
-					entity.getComponent(Collidable).collisionBottom
+					entity.getComponent(Collidable).collisionBottom.length !== 0
 				) {
 					entity.direction = 'left'
 					entity.vector.x = -250
@@ -130,7 +165,7 @@ export class PlayerSystem extends System {
 			if (actions.has('sprint-left')) {
 				if (
 					entity.hasComponent(Collidable) &&
-					entity.getComponent(Collidable).collisionBottom
+					entity.getComponent(Collidable).collisionBottom.length !== 0
 				) {
 					entity.direction = 'left'
 					entity.vector.x = -500
@@ -141,7 +176,7 @@ export class PlayerSystem extends System {
 			if (actions.has('walk-right')) {
 				if (
 					entity.hasComponent(Collidable) &&
-					entity.getComponent(Collidable).collisionBottom
+					entity.getComponent(Collidable).collisionBottom.length !== 0
 				) {
 					entity.direction = 'right'
 					entity.vector.x = 250
@@ -152,7 +187,7 @@ export class PlayerSystem extends System {
 			if (actions.has('sprint-right')) {
 				if (
 					entity.hasComponent(Collidable) &&
-					entity.getComponent(Collidable).collisionBottom
+					entity.getComponent(Collidable).collisionBottom.length !== 0
 				) {
 					entity.direction = 'right'
 					entity.vector.x = 500
@@ -163,7 +198,7 @@ export class PlayerSystem extends System {
 			if (actions.has('jump')) {
 				if (
 					entity.hasComponent(Collidable) &&
-					entity.getComponent(Collidable).collisionBottom
+					entity.getComponent(Collidable).collisionBottom.length !== 0
 				) {
 					entity.actions.jump.state = 'in-use'
 				}
@@ -172,7 +207,7 @@ export class PlayerSystem extends System {
 			if (actions.has('leap')) {
 				if (
 					entity.hasComponent(Collidable) &&
-					entity.getComponent(Collidable).collisionBottom
+					entity.getComponent(Collidable).collisionBottom.length !== 0
 				) {
 					entity.actions.leap.state = 'in-use'
 
@@ -191,7 +226,7 @@ export class PlayerSystem extends System {
 			if (actions.has('draw-weapon')) {
 				if (
 					entity.hasComponent(Collidable) &&
-					entity.getComponent(Collidable).collisionBottom
+					entity.getComponent(Collidable).collisionBottom.length !== 0
 				) {
 					entity.actions.draw.state = 'in-use'
 				}
@@ -200,10 +235,21 @@ export class PlayerSystem extends System {
 			if (actions.has('stowe-weapon')) {
 				if (
 					entity.hasComponent(Collidable) &&
-					entity.getComponent(Collidable).collisionBottom
+					entity.getComponent(Collidable).collisionBottom.length !== 0
 				) {
 					entity.actions.stowe.state = 'in-use'
 					entity.weapon.state = 'not-drawn'
+				}
+			}
+
+			if (actions.has('butt-attack')) {
+				if (
+					entity.hasComponent(Collidable) &&
+					entity.getComponent(Collidable).collisionBottom.length === 0 &&
+					(entity.actions.descend.state === 'in-use' || entity.actions.ascend.state === 'in-use')
+					// TODO: Also check that height above ground
+				) {
+					entity.actions.buttAttack.state = 'in-use'
 				}
 			}
 
@@ -234,6 +280,10 @@ export class PlayerSystem extends System {
 			player.actions.ascend.durationMs += dt * 1000
 		if (player.actions.descend.state === 'in-use')
 			player.actions.descend.durationMs += dt * 1000
+		if (player.actions.shoot.state === 'in-use')
+			player.actions.shoot.durationMs += dt * 1000
+		if (player.actions.buttAttack.state === 'in-use')
+			player.actions.buttAttack.durationMs += dt * 1000
 
 		if (player.actions.draw.durationMs >= player.actions.draw.completeMs)
 			player.actions.draw.state = 'complete'
@@ -243,6 +293,10 @@ export class PlayerSystem extends System {
 			player.actions.jump.state = 'complete'
 		if (player.actions.crouch.durationMs >= player.actions.crouch.completeMs)
 			player.actions.crouch.state = 'complete'
+		if (player.actions.shoot.durationMs >= player.actions.shoot.completeMs)
+			player.actions.shoot.state = 'complete'
+		if (player.actions.buttAttack.durationMs >= player.actions.buttAttack.completeMs)
+			player.actions.buttAttack.state = 'complete'
 		// if (player.actions.leap.durationMs >= player.actions.leap.completeMs)
 		// 	player.actions.leap.state = 'complete'
 		// if(player.actions.walk.durationMs >= player.actions.walk.completeMs) player.actions.walk.state = 'complete'
@@ -296,6 +350,14 @@ export class PlayerSystem extends System {
 			player.actions.descend.state = 'not-in-use'
 			player.actions.descend.durationMs = 0
 		}
+		if (player.actions.shoot.state === 'complete') {
+			player.actions.shoot.state = 'not-in-use'
+			player.actions.shoot.durationMs = 0
+		}
+		// if (player.actions.buttAttack.state === 'complete') {
+		// 	player.actions.buttAttack.state = 'not-in-use'
+		// 	player.actions.buttAttack.durationMs = 0
+		// }
 	}
 
 	resetCompletedCooldowns() {
