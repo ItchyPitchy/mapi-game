@@ -8,43 +8,43 @@ export type SkillEffect =
 	| Blind
 	| Evade
 
-type Damage = {
+export type Damage = {
 	type: 'damage'
 	points: number
 }
 
-type Heal = {
+export type Heal = {
 	type: 'heal'
 	points: number
 }
 
-type Bleed = {
+export type Bleed = {
 	type: 'bleed'
 	points: number
 	duration: number
 }
 
-type Confusion = {
+export type Confusion = {
 	type: 'confuse'
 	duration: number
 }
 
-type Snare = {
+export type Snare = {
 	type: 'snare'
 	duration: number
 }
 
-type Weakness = {
+export type Weakness = {
 	type: 'weaken'
 	duration: number
 }
 
-type Blind = {
+export type Blind = {
 	type: 'blind'
 	duration: number
 }
 
-type Evade = {
+export type Evade = {
 	type: 'evade'
 	duration: number
 }

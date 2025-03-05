@@ -7,7 +7,7 @@ export const zombie: Role = {
 			name: 'Scratch',
 			validTarget: ['enemy'],
 			numberOfTargets: 1,
-			generateSkillEffect: ({ multiplier = 0, fixedBonus = 0 }) => ({
+			generateSkillEffect: ({ multiplier = 1, fixedBonus = 0 }) => ({
 				type: 'damage',
 				points: 15 * multiplier + fixedBonus,
 			}),

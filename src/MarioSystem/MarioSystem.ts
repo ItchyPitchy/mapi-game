@@ -5,12 +5,15 @@ import { Player } from './Entity/Player/Player'
 import { Wall } from './Entity/Wall'
 import { ZombieV1 } from './Entity/Zombie/ZombieV1'
 import { ZombieV1Behavior } from './Entity/Zombie/ZombieV1Behavior'
+import { CrawlerBehavior } from './Entity/Zombie/CrawlerBehavior'
 import { CollisionSystem } from './System/CollisionSystem'
 import { DeleteSystem } from './System/DeleteSystem'
 import { GravitySystem } from './System/GravitySystem'
 import { MoveSystem } from './System/MoveSystem'
 import { PlayerSystem } from './System/PlayerSystem'
 import { EffectSystem } from './System/EffectSystem'
+import { Crawler } from './Entity/Zombie/Crawler'
+import { LevelSetup } from './Levels/Level'
 
 export class MarioSystem {
 	public entities: Entity[] = []
@@ -22,41 +25,11 @@ export class MarioSystem {
 	public playerSystem: PlayerSystem = new PlayerSystem()
 	public effectSystem: EffectSystem = new EffectSystem()
 	public zombieV1Behavior: ZombieV1Behavior = new ZombieV1Behavior()
+	public crawlerBehavior: CrawlerBehavior = new CrawlerBehavior()
 
-	constructor(readonly game: Game) {
-		const levelSetup: {
-			entities: (0 | 1 | 98 | 99)[][]
-			height: number
-			width: number
-		} = {
-			height: 1000,
-			width: 7000,
-			entities: [
-				[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-				[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-				[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 99, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-				[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-				[1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-				[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-				[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 98, 98, 98, 98, 98, 1],
-				[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-				[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-				// [1, 1, 1, 1, 1, 1],
-				// [0, 0, 0, 0, 0, 0],
-				// [0, 99, 0, 0, 0, 0],
-				// [1, 1, 1, 1, 1, 1],
-			],
-		}
+	constructor(readonly game: Game) {}
 
-		this.setupLevel(levelSetup)
-	}
-
-	setupLevel(levelSetup: {
-		entities: (0 | 1 | 98 | 99)[][]
-		height: number
-		width: number
-	}) {
-
+	setupLevel(levelSetup: LevelSetup) {
 		// for (let i = 0; i < levelSetup.entities.length; i++) {
 		// 	for (let j = 0; j < levelSetup.entities[i].length; j++) {
 		// 		const gridBoxSize = {
@@ -210,6 +183,13 @@ export class MarioSystem {
 						y: gridBoxSize.height * i,
 					}))
 				}
+				
+				if (levelSetup.entities[i][j] === 97) {
+					this.entities.push(new Crawler({
+						x: gridBoxSize.width * j,
+						y: gridBoxSize.height * i,
+					}))
+				}
 
 				if (levelSetup.entities[i][j] === 1) {
 					this.entities.push(new Wall(position, gridBoxSize))
@@ -226,6 +206,7 @@ export class MarioSystem {
 			this.deleteSystem,
 			this.playerSystem,
 			this.zombieV1Behavior,
+			this.crawlerBehavior,
 			this.gravitySystem,
 			this.effectSystem,
 			this.moveSystem,

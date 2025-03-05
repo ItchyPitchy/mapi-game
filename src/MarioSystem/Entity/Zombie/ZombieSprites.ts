@@ -1,17 +1,19 @@
-import staleZombieV1BodyPng from '../../../assets/stale_zombie_v1_body.png'
+import staleZombieV1FullBodyPng from '../../../assets/stale_zombie_v1_full-Sheet.png'
 import walkZombieV1LegsPng from '../../../assets/walk_zombie_v1_legs-Sheet.png'
 import walkZombieV1BodyPng from '../../../assets/walk_zombie_v1_body-Sheet.png'
 import dyingZombieV1FullBodyPng from '../../../assets/dying_zombie_v1_full_body-Sheet.png'
 import dyingZombieV1StaleFullBodyPng from '../../../assets/dying_zombie_v1_stale_full_body.png'
+import staleCrawlerFullBodyPng from '../../../assets/stale_crawler_zombie_full-Sheet.png'
+import sprintCrawlerFullBodyPng from '../../../assets/sprint_crawler_zombie_full-Sheet.png'
 
 export const spriteWidth = 20
 export const spriteHeight = 28
 
-const staleZombieV1BodyImg = new Image()
-staleZombieV1BodyImg.src = staleZombieV1BodyPng
+const staleZombieV1FullBodyImg = new Image()
+staleZombieV1FullBodyImg.src = staleZombieV1FullBodyPng
 export const staleZombieV1BodyPresets = {
-	sprites: 1,
-	img: staleZombieV1BodyImg,
+	sprites: 5,
+	img: staleZombieV1FullBodyImg,
 }
 
 const walkZombieV1LegsImg = new Image()
@@ -40,4 +42,18 @@ dyingZombieV1StaleFullBodyImg.src = dyingZombieV1StaleFullBodyPng
 export const dyingZombieV1StaleFullBodyPresets = {
 	sprites: 1,
 	img: dyingZombieV1StaleFullBodyImg,
+}
+
+const staleCrawlerFullBodyImg = new Image()
+staleCrawlerFullBodyImg.src = staleCrawlerFullBodyPng
+export const staleCrawlerFullBodyPresets = {
+	sprites: 8,
+	img: staleCrawlerFullBodyImg,
+}
+
+const sprintCrawlerFullBodyImg = new Image()
+sprintCrawlerFullBodyImg.src = sprintCrawlerFullBodyPng
+export const sprintCrawlerFullBodyPresets = {
+	sprites: 9,
+	img: sprintCrawlerFullBodyImg,
 }

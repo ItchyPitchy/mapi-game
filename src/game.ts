@@ -4,7 +4,7 @@ import { BattleSystem } from './BattleSystem/BattleSystem'
 import { getDocumentElementById } from './shared/helperFunctions/element'
 import { MarioSystem } from './MarioSystem/MarioSystem'
 
-type GameState = 'PAUSE_SCREEN' | 'RUNNING' | 'MAP_SCREEN' | 'BATTLE_SCENE'
+type GameState = 'MAP_SCREEN' | 'BATTLE_SCENE' | 'MARIO_GAME'
 
 export type Input =
 	| 'leftClick'
@@ -28,24 +28,30 @@ export default class Game {
 			name: 'mami',
 			lvl: 1,
 			stats: {
+				hp: 60,
 				maxHp: 60,
+				stamina: 60,
 				maxStamina: 60,
 				strength: 1,
 				intelligence: 1,
 				dodgeChance: 0.1,
 				hitRate: 0.9,
+				speed: 2,
 			},
 		},
 		{
 			name: 'papi',
 			lvl: 1,
 			stats: {
+				hp: 60,
 				maxHp: 60,
+				stamina: 60,
 				maxStamina: 60,
 				strength: 1,
 				intelligence: 1,
 				dodgeChance: 0.1,
 				hitRate: 0.9,
+				speed: 2,
 			},
 		},
 	]
@@ -53,9 +59,9 @@ export default class Game {
 	public pauseScreen = new PauseScreen(this)
 	public battleSystem = new BattleSystem(this)
 	public marioSystem: MarioSystem
-	// entities: Entity[] = []
 	public input = new Set<Input>()
-	public state: GameState = 'RUNNING'
+	public state: GameState = 'MAP_SCREEN'
+	public paused = false
 	public visible = true
 
 	constructor(
@@ -85,77 +91,78 @@ export default class Game {
 			this.input.add('leftClick')
 		})
 
-		// document.addEventListener('keydown', (e) => {
-		// 	switch (e.key) {
-		// 		case 'Escape': {
-		// 			this.input.add('esc')
-		// 			break
-		// 		}
-		// 		case 'ArrowUp': {
-		// 			this.input.add('up')
-		// 			break
-		// 		}
-		// 		case 'ArrowLeft': {
-		// 			this.input.add('left')
-		// 			break
-		// 		}
-		// 		case 'ArrowDown': {
-		// 			this.input.add('down')
-		// 			break
-		// 		}
-		// 		case 'ArrowRight': {
-		// 			this.input.add('right')
-		// 			break
-		// 		}
-		// 		case 's': {
-		// 			this.input.add('s')
-		// 			break
-		// 		}
-		// 		case 'Enter': {
-		// 			this.input.add('enter')
-		// 			break
-		// 		}
-		// 	}
-		// })
+		document.addEventListener('keydown', (e) => {
+			switch (e.key) {
+				case 'Escape': {
+					this.input.add('esc')
+					this.paused = !this.paused
+					break
+				}
+				case 'ArrowUp': {
+					this.input.add('up')
+					break
+				}
+				case 'ArrowLeft': {
+					this.input.add('left')
+					break
+				}
+				case 'ArrowDown': {
+					this.input.add('down')
+					break
+				}
+				case 'ArrowRight': {
+					this.input.add('right')
+					break
+				}
+				case 's': {
+					this.input.add('s')
+					break
+				}
+				case 'Enter': {
+					this.input.add('enter')
+					break
+				}
+			}
+		})
 
-		// document.addEventListener('keyup', (e) => {
-		// 	switch (e.key) {
-		// 		case 'Escape': {
-		// 			this.input.delete('esc')
-		// 			break
-		// 		}
-		// 		case 'ArrowUp': {
-		// 			this.input.delete('up')
-		// 			break
-		// 		}
-		// 		case 'ArrowLeft': {
-		// 			this.input.delete('left')
-		// 			break
-		// 		}
-		// 		case 'ArrowDown': {
-		// 			this.input.delete('down')
-		// 			break
-		// 		}
-		// 		case 'ArrowRight': {
-		// 			this.input.delete('right')
-		// 			break
-		// 		}
-		// 		case 'Enter': {
-		// 			this.input.delete('enter')
-		// 			break
-		// 		}
-		// 		case 's': {
-		// 			this.input.delete('s')
-		// 			break
-		// 		}
-		// 	}
-		// })
-		// gameScreenEl.addEventListener('mousemove', (e) => {
-		// 	this.mousePos = {
-		// 		x: e.offsetX,
-		// 		y: e.offsetY,
-		// 	}
-		// })
+		document.addEventListener('keyup', (e) => {
+			switch (e.key) {
+				case 'Escape': {
+					this.input.delete('esc')
+					break
+				}
+				case 'ArrowUp': {
+					this.input.delete('up')
+					break
+				}
+				case 'ArrowLeft': {
+					this.input.delete('left')
+					break
+				}
+				case 'ArrowDown': {
+					this.input.delete('down')
+					break
+				}
+				case 'ArrowRight': {
+					this.input.delete('right')
+					break
+				}
+				case 'Enter': {
+					this.input.delete('enter')
+					break
+				}
+				case 's': {
+					this.input.delete('s')
+					break
+				}
+			}
+		})
+		gameScreenEl.addEventListener('mousemove', (e) => {
+			this.mousePos = {
+				x: e.offsetX,
+				y: e.offsetY,
+			}
+		})
 
 		this.start()
 	}
@@ -163,17 +170,18 @@ export default class Game {
 	start() {}
 
 	update(dt: number) {
-		if (!this.visible) return 
-
-		this.marioSystem.update(dt)
-		return
+		if (!this.visible) return
+		
+		if (this.paused) {
+			this.pauseScreen.show()
+			this.pauseScreen.update()
+			this.clearInput()
+			return
+		} else {
+			this.pauseScreen.hide()
+		}
 
 		switch (this.state) {
-			case 'PAUSE_SCREEN': {
-				this.pauseScreen.update()
-				this.clearInput()
-				break
-			}
 			case 'MAP_SCREEN': {
 				this.mapScreen.update(dt)
 				this.clearInput()
@@ -184,16 +192,8 @@ export default class Game {
 				this.clearInput()
 				break
 			}
-			case 'RUNNING': {
-				this.input.forEach((input) => {
-					switch (input) {
-						case 'esc': {
-							this.state = 'PAUSE_SCREEN'
-							this.pauseScreen.show()
-							break
-						}
-					}
-				})
+			case 'MARIO_GAME': {
+				this.marioSystem.update(dt)
 				this.clearInput()
 				break
 			}
@@ -209,16 +209,17 @@ export default class Game {
 	}
 
 	draw(mainCtx: CanvasRenderingContext2D, dt: number) {
-		this.marioSystem.draw(mainCtx, dt)
-		return
-
 		switch (this.state) {
 			case 'MAP_SCREEN': {
 				this.mapScreen.draw(mainCtx)
 				break
 			}
 			case 'BATTLE_SCENE': {
-				this.battleSystem.draw(mainCtx)
+				this.battleSystem.draw(mainCtx, dt)
+				break
+			}
+			case 'MARIO_GAME': {
+				this.marioSystem.draw(mainCtx, dt)
 				break
 			}
 		}

@@ -89,6 +89,8 @@ export class ZombieV1Behavior extends System {
     // Would really love if we could do this in a loop; Object.entries destroys the type
 		if (entity.actions.walk.state === 'in-use')
 			entity.actions.walk.durationMs += dt * 1000
+		if (entity.actions.stale.state === 'in-use')
+			entity.actions.stale.durationMs += dt * 1000
 		if (entity.actions.die.state === 'in-use')
 			entity.actions.die.durationMs += dt * 1000
 

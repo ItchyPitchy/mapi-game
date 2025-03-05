@@ -5,7 +5,7 @@ body {
   /* flex-direction: column;
   justify-content: center; */
   /* align-items: center; */
-  /* min-height: 100vh; */
+  min-height: 100vh;
 }
 
 h1 {
@@ -31,6 +31,8 @@ canvas {
 
 #pauseScreen {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   z-index: 999;
@@ -47,16 +49,16 @@ canvas {
   grid-gap: 16px;
 }
 
-#options > span {
+#options>span {
   color: white;
   padding: 8px;
 }
 
-#options > span:hover {
+#options>span:hover {
   cursor: pointer;
 }
 
-#options > span[data-selected="selected"] {
+#options>span[data-selected="selected"] {
   border: 2px solid white;
 }
 

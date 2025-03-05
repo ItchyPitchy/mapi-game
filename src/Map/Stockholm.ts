@@ -3,18 +3,24 @@ import stockholmMap from '../assets/stockholm_map.png'
 import { Point } from '../types'
 import { Battle1 } from '../BattleSystem/Battle/Battle1'
 import Game from '../game'
+import { level1Setup } from '../MarioSystem/Levels/Level1'
+import { LevelSetup } from '../MarioSystem/Levels/Level'
 
-enum StopType {
+export enum StopType {
 	BATTLE,
+	MARIO,
 }
 
 type LevelStop = {
 	x: number
 	y: number
-} & {
-	type: StopType
+} & ({
+	type: StopType.BATTLE
 	setupBattle(_: { game: Game; players: BattleSetup['players'] }): Battle
-}
+} | {
+	type: StopType.MARIO
+	levelSetup: LevelSetup
+})
 
 export class Stockholm {
 	texture: HTMLImageElement
@@ -26,8 +32,8 @@ export class Stockholm {
 			y: 206,
 		},
 		{
-			type: StopType.BATTLE,
-			setupBattle: (setup) => new Battle1(setup.game, setup.players),
+			type: StopType.MARIO,
+			levelSetup: level1Setup,
 			x: 548,
 			y: 252,
 		},

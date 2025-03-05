@@ -10,7 +10,6 @@ const validInputs: Exclude<Input, 'leftClick'>[] = [
 	'down',
 	'right',
 	'enter',
-	'esc',
 ]
 
 type MenuOptionId = 'continue' | 'map' | 'settings' | 'credits'
@@ -95,11 +94,12 @@ export class PauseScreen {
 		switch (this.selectedOption) {
 			case 'continue': {
 				this.hide()
-				this.game.state = 'RUNNING'
+				this.game.paused = false
 				break
 			}
 			case 'map': {
 				this.hide()
+				this.game.paused = false
 				this.game.state = 'MAP_SCREEN'
 				break
 			}
@@ -125,11 +125,6 @@ export class PauseScreen {
 								? this.options[0]
 								: this.options[previousIndex + 1]
 						})
-						break
-					}
-					case 'esc': {
-						this.hide()
-						this.game.state = 'RUNNING'
 						break
 					}
 					case 'enter': {

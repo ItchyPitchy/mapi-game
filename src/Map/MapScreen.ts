@@ -1,12 +1,13 @@
 import Game, { Input } from '../game'
-import { Stockholm } from './Stockholm'
+import { Stockholm, StopType } from './Stockholm'
 import playerTexture from '../assets/player.png'
 import { Vector } from '../shared/Vector'
+import { level1Setup } from '../MarioSystem/Levels/Level1'
 
 const validInputs: Extract<
 	Input,
-	'up' | 'left' | 'down' | 'right' | 'esc' | 'enter'
->[] = ['up', 'left', 'down', 'right', 'esc', 'enter']
+	'up' | 'left' | 'down' | 'right' | 'enter'
+>[] = ['up', 'left', 'down', 'right', 'enter']
 
 export class MapScreen {
 	map = new Stockholm()
@@ -136,19 +137,23 @@ export class MapScreen {
 
 						break
 					}
-					case 'esc': {
-						this.game.state = 'PAUSE_SCREEN'
-						this.game.pauseScreen.show()
-
-						break
-					}
 					case 'enter': {
-						const battle = this.map.currentStop.setupBattle({
-							game: this.game,
-							players: this.game.players,
-						})
-						this.game.battleSystem.battle.active = battle
-						this.game.state = 'BATTLE_SCENE'
+						switch(this.map.currentStop.type) {
+							case StopType.BATTLE: {
+								const battle = this.map.currentStop.setupBattle({
+									game: this.game,
+									players: this.game.players,
+								})
+								this.game.battleSystem.battle.active = battle
+								this.game.state = 'BATTLE_SCENE'
+								break
+							}
+							case StopType.MARIO: {
+								this.game.marioSystem.setupLevel(this.map.currentStop.levelSetup)
+								this.game.state = 'MARIO_GAME'
+								break
+							}
+						}
 
 						break
 					}

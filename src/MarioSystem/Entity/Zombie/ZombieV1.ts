@@ -10,6 +10,7 @@ const spriteWidth = 30
 const spriteHeight = 30
 
 export type Actions = {
+	stale: ActionState
 	walk: ActionState
 	die: ActionState
 }
@@ -23,6 +24,7 @@ type ActionState = {
 export class ZombieV1 extends Entity {
 	public direction: 'left' | 'right' = 'right'
 	public actions: Actions = {
+		stale: { state: 'in-use', durationMs: 0, completeMs: 2250 },
 		walk: { state: 'not-in-use', durationMs: 0, completeMs: 1000 },
 		die: { state: 'not-in-use', durationMs: 0, completeMs: 1000 }
 	}
@@ -69,7 +71,7 @@ export class ZombieV1 extends Entity {
 				return { presets: walkZombieV1BodyPresets, action: this.actions.walk }
 			}
 			default:
-				return { presets: staleZombieV1BodyPresets, action: null }
+				return { presets: staleZombieV1BodyPresets, action: this.actions.stale }
 		}
 	}
 
@@ -84,7 +86,7 @@ export class ZombieV1 extends Entity {
 				return { presets: walkZombieV1LegsPresets, action: this.actions.walk }
 			}
 			default:
-				return { presets: walkZombieV1LegsPresets, action: null }
+				return null
 		}
 	}
 

@@ -1,7 +1,6 @@
 import { Actions, Player } from '../Entity/Player/Player'
 
 export type Input =
-	// | 'esc'
 	// | 'enter'
 	'up' | 'left' | 'right' | 'down' | 'S' | 'F'
 

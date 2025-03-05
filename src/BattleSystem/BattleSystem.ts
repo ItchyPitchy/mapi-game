@@ -1,15 +1,18 @@
 import Game, { Input } from '../game'
-import { Battle } from './Battle/Battle'
+import { getRandomIntInclusive, shuffleArray } from '../shared/helperFunctions/math'
 import { Vector } from '../shared/Vector'
+import { Point } from '../types'
+import { Battle } from './Battle/Battle'
 import { Skill } from './Role/Role'
 import { Character } from './Entity/Character'
+import { Damage } from './SkillEffect'
 
 const skillsPerColumn = 2
 
 const validInputs: Extract<
 	Input,
-	'up' | 'left' | 'down' | 'right' | 'enter' | 'esc'
->[] = ['up', 'left', 'down', 'right', 'esc', 'enter']
+	'up' | 'left' | 'down' | 'right' | 'enter'
+>[] = ['up', 'left', 'down', 'right', 'enter']
 
 type Animation = {
 	type: 'commence-battle'
@@ -27,7 +30,7 @@ type Screen = {
 
 type State =
 	| {
-			name: 'ENEMY_TURN'
+			name: 'CALCULATE_FOE_ACTION'
 			characterTurn: Character
 	  }
 	| {
@@ -45,9 +48,12 @@ type State =
 	| {
 			name: 'ANIMATING_ACTION'
 			characterTurn: Character
+			characterDestination: Point | null
 			selectedSkill: Skill
 			selectedTargets: Array<Character>
-			focusedTarget: Character
+	  }
+	| {
+			name: 'PROGRESS_ATB'
 	  }
 	| {
 			name: 'SLEEP'
@@ -77,18 +83,167 @@ export class BattleSystem {
 		if (
 			outcome.deleted.some((animation) => animation.type === 'commence-battle')
 		) {
-			this.state = this.calculateNextState(this.battle.active)
+			this.state = { name: 'PROGRESS_ATB' }
+		}
+
+		switch (this.state.name) {
+			case 'SLEEP': {
+				break
+			}
+			case 'PROGRESS_ATB': {
+				let nextTurnCharacter: Character | null = null
+
+				const characters = [...this.battle.active.foes, ...this.battle.active.players]
+
+				for (const character of characters) {
+					character.atkBar = character.atkBar + (character.stats.speed) * dt
+					if (character.atkBar >= 1) {
+						character.atkBar = 1
+					}
+
+					if (nextTurnCharacter === null && character.atkBar === 1) {
+						nextTurnCharacter = character
+					}
+				}
+
+				if (nextTurnCharacter !== null && this.battle.active.players.find((player) => player === nextTurnCharacter)) {
+					this.state = {
+						name: 'PLAYER_SELECT_SKILL',
+						characterTurn: nextTurnCharacter,
+						focusedSkill: nextTurnCharacter.role.skills[0]
+					}
+				}
+
+				if (nextTurnCharacter !== null && this.battle.active.foes.find((foe) => foe === nextTurnCharacter)) {
+					this.state = {
+						name: 'CALCULATE_FOE_ACTION',
+						characterTurn: nextTurnCharacter,
+					}
+				}
+				
+				break
+			}
+			case 'ANIMATING_ACTION': {
+				const getTargetOffset = (characterTurn: Character) => {
+					// TODO: Find a better way to find out what type of character whose turn it is.
+					const characterType = characterTurn.name === 'Mami' || characterTurn.name === 'Papi' ? 'Player' : 'Foe'
+					const offsetWidth = 125
+
+					return characterType === 'Foe' ? -offsetWidth : offsetWidth
+				}
+
+				if (this.state.characterDestination === null) {
+					this.state.characterDestination = { x: this.state.selectedTargets[0].position.x + getTargetOffset(this.state.characterTurn), y: this.state.selectedTargets[0].position.y }
+				}
+
+				this.state.characterTurn.position.x += this.state.characterTurn.vector.x * dt
+				this.state.characterTurn.position.y += this.state.characterTurn.vector.y * dt
+				
+				// Stop movement when reached destination
+				if (this.state.characterTurn.vector.magnitude() * dt >= this.state.characterTurn.distanceTo(this.state.characterDestination)) {
+					this.state.characterTurn.position.x = this.state.characterDestination.x
+					this.state.characterTurn.position.y = this.state.characterDestination.y
+					this.state.characterTurn.vector.x = 0
+					this.state.characterTurn.vector.y = 0
+					this.state.characterTurn.actions.walk.state = 'not-in-use'
+				}
+
+				// Character is at original position and has another destination
+				if (
+					this.state.characterTurn.position.x === this.state.characterTurn.originalPosition.x &&
+					this.state.characterTurn.position.y === this.state.characterTurn.originalPosition.y &&
+					this.state.characterDestination.x !== this.state.characterTurn.originalPosition.x &&
+					this.state.characterDestination.y !== this.state.characterTurn.originalPosition.y
+				) {
+					const vectorToDestination = new Vector(this.state.characterDestination.x - this.state.characterTurn.position.x, this.state.characterDestination.y - this.state.characterTurn.position.y)
+					// Adjust speed of vector
+					vectorToDestination.x /= 1.5
+					vectorToDestination.y /= 1.5
+
+					// Set vector to next destination
+					this.state.characterTurn.vector.x = vectorToDestination.x
+					this.state.characterTurn.vector.y = vectorToDestination.y
+					this.state.characterTurn.actions.walk.state = 'in-use'
+				}
+
+				// Has reached enemy
+				if (
+					this.state.characterTurn.position.x === this.state.characterDestination.x &&
+					this.state.characterTurn.position.y === this.state.characterDestination.y &&
+					this.state.characterTurn.position.x !== this.state.characterTurn.originalPosition.x &&
+					this.state.characterTurn.position.y !== this.state.characterTurn.originalPosition.y
+				) {
+					this.state.characterTurn.actions.walk.state = 'not-in-use'
+
+					if (this.state.characterTurn.actions.hit.state === 'complete') {
+						this.executeAction({ skill: this.state.selectedSkill, targets: [this.state.selectedTargets[0]] })
+						this.state.characterTurn.actions.hit.state = 'not-in-use'
+						this.state.characterTurn.actions.hit.durationMs = 0
+						this.state.selectedTargets.splice(0, 1)
+						this.state.characterDestination = this.state.characterTurn.originalPosition
+
+						const vectorToDestination = new Vector(this.state.characterDestination.x - this.state.characterTurn.position.x, this.state.characterDestination.y - this.state.characterTurn.position.y)
+						// Adjust speed of vector
+						vectorToDestination.x /= 1.5
+						vectorToDestination.y /= 1.5
+	
+						// Set vector to next destination
+						this.state.characterTurn.vector.x = vectorToDestination.x
+						this.state.characterTurn.vector.y = vectorToDestination.y
+						this.state.characterTurn.actions.walk.state = 'in-use'
+					} else {
+						this.state.characterTurn.actions.hit.state = 'in-use'
+					}
+				}
+
+				// Has reached original position
+				if (
+					this.state.characterTurn.position.x === this.state.characterDestination.x &&
+					this.state.characterTurn.position.y === this.state.characterDestination.y &&
+					this.state.characterDestination.x === this.state.characterTurn.originalPosition.x &&
+					this.state.characterDestination.y === this.state.characterTurn.originalPosition.y
+				) {
+					this.state.characterTurn.actions.walk.state === 'not-in-use'
+					if (this.state.selectedTargets[0]) {
+						this.state.characterDestination = { x: this.state.selectedTargets[0].position.x + getTargetOffset(this.state.characterTurn), y: this.state.selectedTargets[0].position.y }
+					} else { // No more enemies to attack
+						this.state.characterTurn.atkBar = 0
+						this.state = { name: 'PROGRESS_ATB' }
+					}
+				}
+
+				break
+			}
+			case 'CALCULATE_FOE_ACTION': {
+				const selectedSkill = this.state.characterTurn.role.skills[getRandomIntInclusive(0, this.state.characterTurn.role.skills.length - 1)]
+				const numberOfTargets = selectedSkill.numberOfTargets
+				const validTargets = this.battle.active.players.filter((player) => player.stats.hp > 0)
+				let selectedTargets: Character[] = []
+
+				if (validTargets.length <= numberOfTargets) {
+					selectedTargets = validTargets
+				} else {
+					const shuffledArrayOfTargets = shuffleArray(validTargets)
+					selectedTargets = shuffledArrayOfTargets.slice(0, numberOfTargets)
+				}
+
+				if (selectedTargets.length === 0) throw new Error("Couldn't find any valid targets during foes turn!")
+
+				this.state = {
+					name: 'ANIMATING_ACTION',
+					characterTurn: this.state.characterTurn,
+					selectedSkill: selectedSkill,
+					selectedTargets: selectedTargets,
+					characterDestination: null,
+				}
+
+				break
+			}
 		}
 
 		if (validInputs.some((input) => this.game.input.has(input))) {
 			for (const input of this.game.input) {
 				switch (this.state.name) {
-					case 'SLEEP': {
-						break
-					}
-					case 'ENEMY_TURN': {
-						break
-					}
 					case 'PLAYER_SELECT_SKILL': {
 						switch (input) {
 							case 'up': {
@@ -163,6 +318,8 @@ export class BattleSystem {
 
 								const nextStateFocusedSkill = skillSet
 									.at(indexOfFocusedColumn - 1)
+									?.at(indexOfFocusedSkill) || skillSet
+									.at(indexOfFocusedColumn - 2)
 									?.at(indexOfFocusedSkill)
 
 								if (nextStateFocusedSkill)
@@ -191,18 +348,14 @@ export class BattleSystem {
 									columnWithFocusedSkill.indexOf(focusedSkill)
 
 								const nextStateFocusedSkill = skillSet
-									.at(indexOfFocusedColumn - skillSet.length)
-									?.at(indexOfFocusedSkill)
+									.at(indexOfFocusedColumn - skillSet.length + 1)
+									?.at(indexOfFocusedSkill) ||  skillSet
+									.at(indexOfFocusedColumn - skillSet.length + 2)
+									?.at(indexOfFocusedSkill) 
 
 								if (nextStateFocusedSkill)
 									this.state.focusedSkill = nextStateFocusedSkill
-
-								break
-							}
-							case 'esc': {
-								this.game.state = 'PAUSE_SCREEN'
-								this.game.pauseScreen.show()
-
+									
 								break
 							}
 							case 'enter': {
@@ -343,15 +496,16 @@ export class BattleSystem {
 							case 'enter': {
 								this.state.selectedTargets.push(this.state.focusedTarget)
 
-								if (this.state.selectedTargets.length >= 2) {
-									this.executeAction(this.state)
+								if (this.state.selectedTargets.length >= this.state.selectedSkill.numberOfTargets) {
+									this.state = {
+										name: 'ANIMATING_ACTION',
+										characterTurn: this.state.characterTurn,
+										characterDestination: null,
+										selectedSkill: this.state.selectedSkill,
+										selectedTargets: this.state.selectedTargets,
+									}
 								}
 
-								break
-							}
-							case 'esc': {
-								this.game.state = 'PAUSE_SCREEN'
-								this.game.pauseScreen.show()
 								break
 							}
 						}
@@ -396,17 +550,6 @@ export class BattleSystem {
 		}
 	}
 
-	calculateNextState(battle: Battle): State {
-		const player = battle.players[0]
-		const skills = player.role.skills
-
-		return {
-			name: 'PLAYER_SELECT_SKILL',
-			characterTurn: player,
-			focusedSkill: skills[0],
-		}
-	}
-
 	mapToSkillSet(skills: Skill[]): (Skill | null)[][] {
 		const numberOfSkillBoxes =
 			skills.length % skillsPerColumn === 0
@@ -423,27 +566,29 @@ export class BattleSystem {
 		const numberOfSkillColumns = skillList.length / skillsPerColumn
 		const skillSet: (Skill | null)[][] = []
 
+		
 		for (let i = 0; i < numberOfSkillColumns; i++) {
-			skillSet.push(skillList.slice(i * skillsPerColumn, skillsPerColumn))
+			skillSet.push(skillList.slice(i * skillsPerColumn, i * skillsPerColumn + skillsPerColumn))
 		}
 
 		return skillSet
 	}
 
-	executeAction(
-		action: Pick<
-			Extract<State, { name: 'PLAYER_SELECT_TARGET' }>,
-			'selectedSkill' | 'selectedTargets'
-		>
-	) {
-		// if (!action.selectedSkill.unlocked) return
+	executeAction({ skill, targets }: { skill: Skill, targets: Array<Character> }) {
+		targets.forEach((target) => {
+			target.effects.push(skill.generateSkillEffect({}))
+		})
 
-		action.selectedTargets.forEach((target) => {
-			target.effects.push(action.selectedSkill.generateSkillEffect({}))
+		targets.forEach((target) => {
+			const dmgEffects = target.effects.filter((effect): effect is Damage => effect.type === 'damage')
+			dmgEffects.forEach((dmgEffect) => {
+				target.stats.hp -= dmgEffect.points
+			})
+			target.effects = target.effects.filter((effect) => effect.type !== 'damage')
 		})
 	}
 
-	draw(mainCtx: CanvasRenderingContext2D) {
+	draw(mainCtx: CanvasRenderingContext2D, dt: number) {
 		if (!this.battle.active) return
 
 		mainCtx.clearRect(0, 0, this.game.gameWidth, this.game.gameHeight)
@@ -464,29 +609,12 @@ export class BattleSystem {
 			]) {
 				const isSelected =
 					this.state.name === 'PLAYER_SELECT_TARGET' &&
+					this.state.selectedTargets.some((target) => target === character)
+				const isFocused =
+					this.state.name === 'PLAYER_SELECT_TARGET' &&
 					this.state.focusedTarget === character
 
-				character.draw({ ctx: mainCtx }, isSelected)
-
-				// if (
-				// 	this.activeBattle.selectedAction &&
-				// 	this.activeBattle.selectedAction.targets.some(
-				// 		(target) => target === foe
-				// 	)
-				// ) {
-				// 	mainCtx.save()
-				// 	mainCtx.strokeStyle = 'black'
-				// 	mainCtx.beginPath()
-				// 	mainCtx.arc(
-				// 		foe.position.x + this.scene.offset.x,
-				// 		foe.position.y + this.scene.offset.y,
-				// 		10,
-				// 		0,
-				// 		2 * Math.PI
-				// 	)
-				// 	mainCtx.stroke()
-				// 	mainCtx.restore()
-				// }
+				character.draw({ ctx: mainCtx }, dt, isSelected, isFocused)
 			}
 		}
 
@@ -510,19 +638,6 @@ export class BattleSystem {
 						offsetY: 0,
 					})
 
-					// // TODO: Delete this if we have one single background image instead of the same repeating
-					// if (animationProgress < 1) {
-					// 	const background2TranslateX =
-					// 		this.game.gameWidth * animationProgress
-
-					// 	this.battle.active.drawBackground({
-					// 		ctx: mainCtx,
-					// 		game: this.game,
-					// 		offsetX: background2TranslateX,
-					// 		offsetY: 0,
-					// 	})
-					// }
-
 					const characterTranslateX =
 						this.game.gameWidth - this.game.gameWidth * animationProgress
 
@@ -534,132 +649,90 @@ export class BattleSystem {
 							ctx: mainCtx,
 							offsetX: -characterTranslateX,
 							offsetY: 0,
-						})
+						}, dt)
 					}
 				}
 			}
 		}
 
 		if (this.state.name === 'PLAYER_SELECT_SKILL') {
-			const skillSet = this.mapToSkillSet(this.state.characterTurn.role.skills)
+			this.drawSkillBar(mainCtx, this.state)
+		}
+	}
 
-			for (let columnIndex = 0; columnIndex < skillSet.length; columnIndex++) {
-				for (let rowIndex = 0; rowIndex < skillsPerColumn; rowIndex++) {
-					const skillHeight = 50
-					const skillWidth = this.game.gameWidth / skillSet.length
+	drawSkillBar(ctx: CanvasRenderingContext2D, state: Extract<State, { name: 'PLAYER_SELECT_SKILL' }>) {
+		const skillSet = this.mapToSkillSet(state.characterTurn.role.skills)
 
-					mainCtx.save()
-					mainCtx.fillStyle = 'lightgray'
+		for (let columnIndex = 0; columnIndex < skillSet.length; columnIndex++) {
+			for (let rowIndex = 0; rowIndex < skillsPerColumn; rowIndex++) {
+				const skillHeight = 50
+				const skillWidth = this.game.gameWidth / skillSet.length
 
-					const lineWidth = 5
+				ctx.save()
+				ctx.fillStyle = 'lightgray'
 
-					mainCtx.lineWidth = lineWidth
-					mainCtx.strokeStyle = 'black'
+				const lineWidth = 5
 
-					mainCtx.fillRect(
-						skillWidth * columnIndex,
-						skillHeight * rowIndex,
-						skillWidth,
-						skillHeight
+				ctx.lineWidth = lineWidth
+				ctx.strokeStyle = 'black'
+
+				ctx.fillRect(
+					skillWidth * columnIndex,
+					skillHeight * rowIndex,
+					skillWidth,
+					skillHeight
+				)
+				ctx.strokeRect(
+					skillWidth * columnIndex + lineWidth / 2,
+					skillHeight * rowIndex + lineWidth / 2,
+					skillWidth - lineWidth,
+					skillHeight - lineWidth
+				)
+				ctx.restore()
+
+				const skill = skillSet[columnIndex][rowIndex]
+
+				if (skill) {
+					ctx.save()
+
+					ctx.font = '30px serif'
+					ctx.textAlign = 'center'
+					ctx.fillStyle = 'black'
+
+					ctx.fillText(
+						skill.name,
+						skillWidth * columnIndex + skillWidth / 2,
+						skillHeight * rowIndex + 40
 					)
-					mainCtx.strokeRect(
-						skillWidth * columnIndex + lineWidth / 2,
-						skillHeight * rowIndex + lineWidth / 2,
-						skillWidth - lineWidth,
-						skillHeight - lineWidth
-					)
-					mainCtx.restore()
 
-					// console.log('skillSet', skillSet)
-
-					const skill = skillSet[columnIndex][rowIndex]
-
-					if (skill) {
-						mainCtx.save()
-
-						mainCtx.font = '30px serif'
-						mainCtx.textAlign = 'center'
-
-						// if (characterTurnSkills[i] === this.focusedAction) {
-						// 	mainCtx.fillStyle = 'yellow'
-						// } else {
-						mainCtx.fillStyle = 'black'
-						// }
-
-						mainCtx.fillText(
-							skill.name,
-							skillWidth * columnIndex + skillWidth / 2,
-							skillHeight * rowIndex + 40
-						)
-
-						mainCtx.restore()
-					}
-				}
-			}
-
-			for (let columnIndex = 0; columnIndex < skillSet.length; columnIndex++) {
-				for (let rowIndex = 0; rowIndex < skillsPerColumn; rowIndex++) {
-					const skillHeight = 50
-					const skillWidth = this.game.gameWidth / skillSet.length
-
-					mainCtx.save()
-
-					const lineWidth = 5
-
-					mainCtx.lineWidth = lineWidth
-					mainCtx.strokeStyle = 'red'
-
-					if (skillSet[columnIndex][rowIndex] === this.state.focusedSkill) {
-						mainCtx.strokeRect(
-							skillWidth * columnIndex + lineWidth / 2,
-							skillHeight * rowIndex + lineWidth / 2,
-							skillWidth - lineWidth,
-							skillHeight - lineWidth
-						)
-					}
-
-					mainCtx.restore()
+					ctx.restore()
 				}
 			}
 		}
 
-		// for (let i = 0; i < characterTurnSkills.length; i++) {
-		// 	mainCtx.save()
+		for (let columnIndex = 0; columnIndex < skillSet.length; columnIndex++) {
+			for (let rowIndex = 0; rowIndex < skillsPerColumn; rowIndex++) {
+				if (skillSet[columnIndex][rowIndex] !== state.focusedSkill) continue
 
-		// 	mainCtx.stroke()
-		// 	mainCtx.font = '30px serif'
-		// 	mainCtx.textAlign = 'center'
+				const skillHeight = 50
+				const skillWidth = this.game.gameWidth / skillSet.length
 
-		// 	if (characterTurnSkills[i] === this.focusedAction) {
-		// 		mainCtx.fillStyle = 'yellow'
-		// 	} else {
-		// 		mainCtx.fillStyle = 'black'
-		// 	}
+				ctx.save()
 
-		// 	mainCtx.fillText(
-		// 		characterTurnSkills[i].name,
-		// 		this.game.gameWidth / 2,
-		// 		40 * (i + 1)
-		// 	)
+				const lineWidth = 5
 
-		// 	mainCtx.restore()
-		// }
+				ctx.lineWidth = lineWidth
+				ctx.strokeStyle = 'red'
+
+				ctx.strokeRect(
+					skillWidth * columnIndex + lineWidth / 2,
+					skillHeight * rowIndex + lineWidth / 2,
+					skillWidth - lineWidth,
+					skillHeight - lineWidth
+				)
+
+				ctx.restore()
+			}
+		}
 	}
-
-	// drawSkillBar(ctx: CanvasRenderingContext2D, player: Player) {
-	// 	const maxNumberOfSkills = 4
-	// 	const skillHeight = 50
-
-	// 	ctx.save()
-	// 	ctx.fillStyle = 'grey'
-
-	// 	for (let i = 0; i < maxNumberOfSkills; i++) {
-	// 		ctx.fillRect(0 + , 0, this.game.gameWidth, skillBarHeight)
-	// 	}
-
-	// 	ctx.restore()
-
-	// 	ctx.fillRect(0, 0, this.game.gameWidth, skillBarHeight)
-
-	// }
 }

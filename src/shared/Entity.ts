@@ -18,7 +18,9 @@ export default class Entity {
 			offsetX?: number
 			offsetY?: number
 		},
-		selected?: boolean
+		dt: number,
+		selected?: boolean,
+		focused?: boolean
 	) {
 		throw new Error('#draw not implemented yet!')
 	}
