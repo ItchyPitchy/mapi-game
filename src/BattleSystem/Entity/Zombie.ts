@@ -1,72 +1,98 @@
-import Entity from '../../shared/Entity'
 import { Vector } from '../../shared/Vector'
 import { Point } from '../../types'
 import { role } from '../Role/Role'
-import { Actions, Foe } from './Character'
-import spritesheet from '../../assets/zombie_spritesheet.png'
+import { Actions, Character } from './Character'
+import {
+	staleZombieV1BodyPresets,
+	walkZombieV1BodyPresets,
+	walkZombieV1LegsPresets,
+	dyingZombieV1FullBodyPresets,
+	dyingZombieV1StaleFullBodyPresets,
+} from '../../MarioSystem/Entity/Zombie/ZombieSprites'
 
-export class Zombie extends Entity implements Foe {
-	public size = {
-		height: 100,
-		width: 100,
+const spriteWidth = 30
+const spriteHeight = 30
+
+const generateStatsFromLvl = (lvl: number): Stats => {
+	const baseMissChance = 0.4
+	const baseTakeHitChance = 0.9
+
+	return {
+		hp: 40 * lvl,
+		maxHp: 40 * lvl,
+		stamina: 40 * lvl,
+		maxStamina: 40 * lvl,
+		strength: 1 * lvl,
+		intelligence: 1 * lvl,
+		hitRate: 1 - baseMissChance * lvl,
+		dodgeChance: 1 - baseTakeHitChance * lvl,
+		speed: 1 * lvl,
 	}
-	public name = 'Zombie'
-	public role = role.zombie
-	public atkBar = 0
-	public stats
-	public effects = []
+}
+
+export class Zombie extends Character {
 	public spritesheet = new Image()
-	public originalPosition
-	public vector: Vector = new Vector(0, 0)
-	public actions: Actions = {
-		stale: { state: 'in-use', durationMs: 0, completeMs: 1125 },
-		walk: { state: 'not-in-use', durationMs: 0, completeMs: 1125 },
-		hit: { state: 'not-in-use', durationMs: 0, completeMs: 750 },
-	}
 
 	constructor(
-		public lvl: number,
+		lvl: number,
 		position: Point,
 		rotation = 0,
-		size = { height: 50, width: 50 }
+		vector = new Vector(0, 0),
+		size = { height: spriteHeight * 4, width: spriteWidth * 4 }
 	) {
-		super(position, size, rotation)
-
-		this.spritesheet.src = spritesheet
-
-		const stats = this.generateStatsFromLvl(lvl)
-		this.originalPosition = {
-			x: position.x,
-			y: position.y
+		const stats = generateStatsFromLvl(lvl)
+		const actions: Actions = {
+			stale: { state: 'in-use', durationMs: 0, completeMs: 2250 },
+			walk: { state: 'not-in-use', durationMs: 0, completeMs: 1000 },
+			hit: { state: 'not-in-use', durationMs: 0, completeMs: 2250 },
+			die: { state: 'not-in-use', durationMs: 0, completeMs: 1000 },
 		}
-		this.stats = stats
+
+		super(
+			'Zombie',
+			role.zombie,
+			lvl,
+			stats,
+			actions,
+			position,
+			vector,
+			rotation,
+			size
+		)
 	}
 
-	generateStatsFromLvl(lvl: number): Stats {
-		const baseMissChance = 0.4
-		const baseTakeHitChance = 0.9
-
-		return {
-			hp: 40 * lvl,
-			maxHp: 40 * lvl,
-			stamina: 40 * lvl,
-			maxStamina: 40 * lvl,
-			strength: 1 * lvl,
-			intelligence: 1 * lvl,
-			hitRate: 1 - baseMissChance * lvl,
-			dodgeChance: 1 - baseTakeHitChance * lvl,
-			speed: 1 * lvl,
+	decideBodySprite(): {
+		presets: { img: HTMLImageElement; sprites: number }
+		action: { completeMs: number; durationMs: number } | null
+		step: number
+	} {
+		switch (true) {
+			case this.actions.die.state === 'in-use':
+				return this.constructSpriteData({ presets: dyingZombieV1FullBodyPresets, action: this.actions.die })
+			case this.actions.die.state === 'complete':
+				return this.constructSpriteData({ presets: dyingZombieV1StaleFullBodyPresets, action: null })
+			case this.actions.walk.state === 'in-use':
+				return this.constructSpriteData({ presets: walkZombieV1BodyPresets, action: this.actions.walk })
+			case this.actions.hit.state === 'in-use':
+				return this.constructSpriteData({ presets: staleZombieV1BodyPresets, action: this.actions.hit })
+			default:
+				return this.constructSpriteData({ presets: staleZombieV1BodyPresets, action: this.actions.stale })
 		}
 	}
 
-	calculateHitbox(): { x: number; y: number; width: number; height: number } {
-		const ratio = 1
-		const x = this.position.x - (this.size.width / 2) * ratio
-		const y = this.position.y - this.size.height
-		const width = this.size.width - this.size.width * (1 - ratio)
-		const height = this.size.height
+	decideLegsSprite(): {
+		presets: { img: HTMLImageElement; sprites: number }
+		action: { completeMs: number; durationMs: number } | null
+		step: number
+	} | null {
+		if (this.actions.die.state === 'in-use' || this.actions.die.state === 'complete') return null
 
-		return { x, y, width, height }
+		switch (true) {
+			case this.actions.walk.state === 'in-use':
+				return this.constructSpriteData({ presets: walkZombieV1LegsPresets, action: this.actions.walk })
+			default:
+				return null
+		}
 	}
 
 	draw(
@@ -86,143 +112,50 @@ export class Zombie extends Entity implements Foe {
 		ctx.save()
 		ctx.translate(offsetX, offsetY)
 
-		const hitbox = this.calculateHitbox()
-
-		const barHeight = 10
-		
-		ctx.fillStyle = 'grey'
-		ctx.fillRect(
-			hitbox.x,
-			hitbox.y - barHeight * 3,
-			hitbox.width,
-			barHeight,
-		)
-
-		ctx.fillStyle = 'red'
-		ctx.fillRect(
-			hitbox.x,
-			hitbox.y - barHeight * 3,
-			hitbox.width * (this.stats.hp / this.stats.maxHp),
-			barHeight,
-		)
-
-		ctx.fillStyle = 'grey'
-		ctx.fillRect(
-			hitbox.x,
-			hitbox.y - barHeight * 2,
-			hitbox.width,
-			barHeight,
-		)
-
-		ctx.fillStyle = 'blue'
-		ctx.fillRect(
-			hitbox.x,
-			hitbox.y - barHeight * 2,
-			hitbox.width * (this.stats.stamina / this.stats.maxStamina),
-			barHeight,
-		)
-		
-		ctx.fillStyle = 'grey'
-		ctx.fillRect(
-			hitbox.x,
-			hitbox.y - barHeight,
-			hitbox.width,
-			barHeight,
-		)
-
-		ctx.fillStyle = 'green'
-		ctx.fillRect(
-			hitbox.x,
-			hitbox.y - barHeight,
-			hitbox.width * (this.atkBar / 1),
-			barHeight,
-		)
-
-		ctx.lineWidth = 2
-		
-		ctx.strokeStyle = 'yellow'
-		ctx.strokeRect(
-			hitbox.x,
-			hitbox.y - barHeight * 3,
-			hitbox.width,
-			barHeight,
-		)
-		
-		ctx.strokeStyle = 'yellow'
-		ctx.strokeRect(
-			hitbox.x,
-			hitbox.y - barHeight * 2,
-			hitbox.width,
-			barHeight,
-		)
-		
-		ctx.strokeStyle = 'yellow'
-		ctx.strokeRect(
-			hitbox.x,
-			hitbox.y - barHeight,
-			hitbox.width,
-			barHeight,
-		)
+		this.drawBar(ctx)
 
 		ctx.imageSmoothingEnabled = false
 
-		if (selected) {
-			ctx.shadowColor = 'green'
-			ctx.shadowBlur = 0
+		let scaleXMultiplier = 1
 
-			const outlineThickness = 4
+		// if (this.direction === 'right') scaleXMultiplier = -1
+		// if (this.direction === 'left') scaleXMultiplier = 1
 
-			const offsetArray = [-outlineThickness, outlineThickness]
+		ctx.scale(scaleXMultiplier, 1)
 
-			for (let i = 0; i < offsetArray.length; i++) {
-				ctx.shadowOffsetX = offsetArray[i]
-
-				for (let j = 0; j < offsetArray.length; j++) {
-					ctx.shadowOffsetY = offsetArray[j]
-
-					ctx.drawImage(
-						this.spritesheet,
-						this.position.x - this.size.width / 2,
-						this.position.y - this.size.height,
-						this.size.width,
-						this.size.height
-					)
-				}
-			}
-		}
+		const legsSprite = this.decideLegsSprite()
+		const bodySprite = this.decideBodySprite()
 
 		if (focused) {
-			ctx.shadowColor = 'yellow'
-			ctx.shadowBlur = 0
-
-			const outlineThickness = 2
-
-			const offsetArray = [-outlineThickness, outlineThickness]
-
-			for (let i = 0; i < offsetArray.length; i++) {
-				ctx.shadowOffsetX = offsetArray[i]
-
-				for (let j = 0; j < offsetArray.length; j++) {
-					ctx.shadowOffsetY = offsetArray[j]
-
-					ctx.drawImage(
-						this.spritesheet,
-						this.position.x - this.size.width / 2,
-						this.position.y - this.size.height,
-						this.size.width,
-						this.size.height
-					)
-				}
-			}
+			this.drawCharacterOutline({
+				ctx,
+				spriteWidth,
+				spriteHeight,
+				legsSprite,
+				bodySprite,
+				scaleXMultiplier,
+				color: 'yellow',
+			})
+		} else if (selected) {
+			this.drawCharacterOutline({
+				ctx,
+				spriteWidth,
+				spriteHeight,
+				legsSprite,
+				bodySprite,
+				scaleXMultiplier,
+				color: 'red',
+			})
 		}
 
-		ctx.drawImage(
-			this.spritesheet,
-			this.position.x - this.size.width / 2,
-			this.position.y - this.size.height,
-			this.size.width,
-			this.size.height
-		)
+		this.drawCharacter({
+			ctx,
+			spriteWidth,
+			spriteHeight,
+			legsSprite,
+			bodySprite,
+			scaleXMultiplier,
+		})
 
 		ctx.resetTransform()
 		ctx.restore()
@@ -233,8 +166,12 @@ export class Zombie extends Entity implements Foe {
 			this.actions.walk.durationMs += dt * 1000
 		if (this.actions.hit.state === 'in-use')
 			this.actions.hit.durationMs += dt * 1000
+		if (this.actions.die.state === 'in-use')
+			this.actions.die.durationMs += dt * 1000
 
 		if (this.actions.hit.durationMs >= this.actions.hit.completeMs)
 			this.actions.hit.state = 'complete'
+		if (this.actions.die.durationMs >= this.actions.die.completeMs)
+			this.actions.die.state = 'complete'
 	}
 }

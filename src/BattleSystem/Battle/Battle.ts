@@ -41,7 +41,7 @@ export class Battle {
 		this.players = this.generatePlayers(game, setup.players)
 	}
 
-	private generateFoes(game: Game, foes: BattleSetup['foes']): Foe[] {
+	private generateFoes(game: Game, foes: BattleSetup['foes']): Character[] {
 		const numberOfFoes = getRandomIntInclusive(foes.min, foes.max)
 		const foeSetup: Array<{ type: FoeType; lvl: number }> = []
 
@@ -78,7 +78,8 @@ export class Battle {
 				oneThirdMapHeight * 2
 			const posX =
 				40 +
-				70 * column -
+				game.gameWidth / 10 +
+				140 * column -
 				(index % maxCharacterPerColumn) * (60 / charactersInColumn)
 
 			switch (foe.type) {
@@ -118,7 +119,8 @@ export class Battle {
 				oneThirdMapHeight * 2
 			const posX =
 				game.gameWidth -
-				70 * column -
+				game.gameWidth / 10 -
+				140 * column -
 				(index % maxCharacterPerColumn) * (60 / charactersInColumn)
 
 			switch (player.name) {

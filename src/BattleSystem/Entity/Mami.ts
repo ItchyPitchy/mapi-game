@@ -1,48 +1,69 @@
-import Entity from '../../shared/Entity'
 import { Vector } from '../../shared/Vector'
 import { Point } from '../../types'
 import { role } from '../Role/Role'
-import { Actions, Character } from './Character'
-import spritesheet from '../../assets/mami_spritesheet.png'
+import { Actions, Character, ConstructedSpriteData } from './Character'
 
-export class Mami extends Entity implements Character {
-	public name = 'Mami'
-	public role = role.medic
-	public atkBar = 0
-	public effects = []
+import {
+	drawGunBodyPresets,
+	spriteHeight,
+	spriteWidth,
+	staleStandingLegsPresets,
+	staleStowedGunBodyPresets,
+	walkDrawnGunBodyPresets,
+	walkLegsPresets,
+} from '../../MarioSystem/Entity/Player/PlayerSprites'
+
+export class Mami extends Character {
 	public spritesheet = new Image()
-	public originalPosition
-	public vector: Vector = new Vector(0, 0)
-	public actions: Actions = {
-		stale: { state: 'in-use', durationMs: 0, completeMs: 1125 },
-		walk: { state: 'not-in-use', durationMs: 0, completeMs: 1125 },
-		hit: { state: 'not-in-use', durationMs: 0, completeMs: 750 },
-	}
 
 	constructor(
-		public lvl: number,
-		public stats: Stats,
+		lvl: number,
+		stats: Stats,
 		position: Point,
 		rotation = 0,
-		size = { height: 96, width: 96 }
+		vector = new Vector(0, 0),
+		size = { height: spriteHeight * 4, width: spriteWidth * 4 }
 	) {
-		super(position, size, rotation)
-
-		this.originalPosition = {
-			x: position.x,
-			y: position.y
+		const actions: Actions = {
+			stale: { state: 'in-use', durationMs: 0, completeMs: 1125 },
+			walk: { state: 'not-in-use', durationMs: 0, completeMs: 1125 },
+			hit: { state: 'not-in-use', durationMs: 0, completeMs: 750 },
+			die: { state: 'not-in-use', durationMs: 0, completeMs: 750 },
 		}
-		this.spritesheet.src = spritesheet
+
+		super(
+			'Mami',
+			role.medic,
+			lvl,
+			stats,
+			actions,
+			position,
+			vector,
+			rotation,
+			size
+		)
 	}
 
-	calculateHitbox(): { x: number; y: number; width: number; height: number } {
-		const ratio = 1
-		const x = this.position.x - (this.size.width / 2) * ratio
-		const y = this.position.y - this.size.height
-		const width = this.size.width - this.size.width * (1 - ratio)
-		const height = this.size.height
+	decideBodySprite(): ConstructedSpriteData {
+		switch (true) {
+			case this.actions.walk.state === 'in-use':
+				return this.constructSpriteData({ presets: walkDrawnGunBodyPresets, action: this.actions.walk })
+			case this.actions.hit.state === 'in-use':
+				return this.constructSpriteData({ presets: drawGunBodyPresets, action: this.actions.hit })
+			default:
+				return this.constructSpriteData({ presets: staleStowedGunBodyPresets, action: this.actions.stale })
+		}
+	}
 
-		return { x, y, width, height }
+	decideLegsSprite(): ConstructedSpriteData {
+		switch (true) {
+			case this.actions.walk.state === 'in-use':
+				return this.constructSpriteData({ presets: walkLegsPresets, action: this.actions.walk })
+			case this.actions.hit.state === 'in-use':
+				return this.constructSpriteData({ presets: staleStandingLegsPresets, action: this.actions.hit })
+			default:
+				return this.constructSpriteData({ presets: staleStandingLegsPresets, action: this.actions.stale })
+		}
 	}
 
 	draw(
@@ -62,143 +83,50 @@ export class Mami extends Entity implements Character {
 		ctx.save()
 		ctx.translate(offsetX, offsetY)
 
-		const hitbox = this.calculateHitbox()
-
-		const barHeight = 10
-		
-		ctx.fillStyle = 'grey'
-		ctx.fillRect(
-			hitbox.x,
-			hitbox.y - barHeight * 3,
-			hitbox.width,
-			barHeight,
-		)
-
-		ctx.fillStyle = 'red'
-		ctx.fillRect(
-			hitbox.x,
-			hitbox.y - barHeight * 3,
-			hitbox.width * (this.stats.hp / this.stats.maxHp),
-			barHeight,
-		)
-
-		ctx.fillStyle = 'grey'
-		ctx.fillRect(
-			hitbox.x,
-			hitbox.y - barHeight * 2,
-			hitbox.width,
-			barHeight,
-		)
-
-		ctx.fillStyle = 'blue'
-		ctx.fillRect(
-			hitbox.x,
-			hitbox.y - barHeight * 2,
-			hitbox.width * (this.stats.stamina / this.stats.maxStamina),
-			barHeight,
-		)
-		
-		ctx.fillStyle = 'grey'
-		ctx.fillRect(
-			hitbox.x,
-			hitbox.y - barHeight,
-			hitbox.width,
-			barHeight,
-		)
-
-		ctx.fillStyle = 'green'
-		ctx.fillRect(
-			hitbox.x,
-			hitbox.y - barHeight,
-			hitbox.width * (this.atkBar / 1),
-			barHeight,
-		)
-
-		ctx.lineWidth = 2
-		
-		ctx.strokeStyle = 'yellow'
-		ctx.strokeRect(
-			hitbox.x,
-			hitbox.y - barHeight * 3,
-			hitbox.width,
-			barHeight,
-		)
-		
-		ctx.strokeStyle = 'yellow'
-		ctx.strokeRect(
-			hitbox.x,
-			hitbox.y - barHeight * 2,
-			hitbox.width,
-			barHeight,
-		)
-		
-		ctx.strokeStyle = 'yellow'
-		ctx.strokeRect(
-			hitbox.x,
-			hitbox.y - barHeight,
-			hitbox.width,
-			barHeight,
-		)
+		this.drawBar(ctx)
 
 		ctx.imageSmoothingEnabled = false
 
-		if (selected) {
-			ctx.shadowColor = 'green'
-			ctx.shadowBlur = 0
+		let scaleXMultiplier = 1
 
-			const outlineThickness = 2
+		// if (this.direction === 'right') scaleXMultiplier = -1
+		// if (this.direction === 'left') scaleXMultiplier = 1
 
-			const offsetArray = [-outlineThickness, outlineThickness]
+		ctx.scale(scaleXMultiplier, 1)
 
-			for (let i = 0; i < offsetArray.length; i++) {
-				ctx.shadowOffsetX = offsetArray[i]
+		const legsSprite = this.decideLegsSprite()
+		const bodySprite = this.decideBodySprite()
 
-				for (let j = 0; j < offsetArray.length; j++) {
-					ctx.shadowOffsetY = offsetArray[j]
-
-					ctx.drawImage(
-						this.spritesheet,
-						this.position.x - this.size.width / 2,
-						this.position.y - this.size.height,
-						this.size.width,
-						this.size.height
-					)
-				}
-			}
-		}
-		
 		if (focused) {
-			ctx.shadowColor = 'yellow'
-			ctx.shadowBlur = 0
-
-			const outlineThickness = 4
-
-			const offsetArray = [-outlineThickness, outlineThickness]
-
-			for (let i = 0; i < offsetArray.length; i++) {
-				ctx.shadowOffsetX = offsetArray[i]
-
-				for (let j = 0; j < offsetArray.length; j++) {
-					ctx.shadowOffsetY = offsetArray[j]
-
-					ctx.drawImage(
-						this.spritesheet,
-						this.position.x - this.size.width / 2,
-						this.position.y - this.size.height,
-						this.size.width,
-						this.size.height
-					)
-				}
-			}
+			this.drawCharacterOutline({
+				ctx,
+				spriteWidth,
+				spriteHeight,
+				legsSprite,
+				bodySprite,
+				scaleXMultiplier,
+				color: 'yellow',
+			})
+		} else if (selected) {
+			this.drawCharacterOutline({
+				ctx,
+				spriteWidth,
+				spriteHeight,
+				legsSprite,
+				bodySprite,
+				scaleXMultiplier,
+				color: 'red',
+			})
 		}
 
-		ctx.drawImage(
-			this.spritesheet,
-			this.position.x - this.size.width / 2,
-			this.position.y - this.size.height,
-			this.size.width,
-			this.size.height
-		)
+		this.drawCharacter({
+			ctx,
+			spriteWidth,
+			spriteHeight,
+			legsSprite,
+			bodySprite,
+			scaleXMultiplier,
+		})
 
 		ctx.resetTransform()
 		ctx.restore()
