@@ -32,6 +32,7 @@ type State =
 	| {
 			name: 'CALCULATE_FOE_ACTION'
 			characterTurn: Character
+			selectedTargets: Array<Character>
 	  }
 	| {
 			name: 'PLAYER_SELECT_SKILL'
@@ -43,7 +44,7 @@ type State =
 			characterTurn: Character
 			selectedSkill: Skill
 			selectedTargets: Array<Character>
-			focusedTarget: Character
+			focusedTarget: Character | null
 	  }
 	| {
 			name: 'ANIMATING_ACTION'
@@ -93,7 +94,7 @@ export class BattleSystem {
 			case 'PROGRESS_ATB': {
 				let nextTurnCharacter: Character | null = null
 
-				const characters = [...this.battle.active.foes, ...this.battle.active.players]
+				const characters = this.getNonDeadCharacters([...this.battle.active.foes, ...this.battle.active.players])
 
 				for (const character of characters) {
 					character.atkBar = character.atkBar + (character.stats.speed) * dt
@@ -106,34 +107,68 @@ export class BattleSystem {
 					}
 				}
 
-				if (nextTurnCharacter !== null && this.battle.active.players.find((player) => player === nextTurnCharacter)) {
+				if (nextTurnCharacter !== null && this.isPlayer(nextTurnCharacter)) {
 					this.state = {
 						name: 'PLAYER_SELECT_SKILL',
 						characterTurn: nextTurnCharacter,
 						focusedSkill: nextTurnCharacter.role.skills[0]
 					}
-				}
-
-				if (nextTurnCharacter !== null && this.battle.active.foes.find((foe) => foe === nextTurnCharacter)) {
+				} else if (nextTurnCharacter !== null && this.isFoe(nextTurnCharacter)) {
 					this.state = {
 						name: 'CALCULATE_FOE_ACTION',
 						characterTurn: nextTurnCharacter,
+						selectedTargets: [],
 					}
 				}
 				
 				break
 			}
 			case 'ANIMATING_ACTION': {
-				const getTargetOffset = (characterTurn: Character) => {
-					// TODO: Find a better way to find out what type of character whose turn it is.
-					const characterType = characterTurn.name === 'Mami' || characterTurn.name === 'Papi' ? 'Player' : 'Foe'
-					const offsetWidth = 125
+				if (
+					this.isCurrentCharacter(this.state.selectedTargets[0]) && 
+					this.state.characterTurn.position.x === this.state.characterTurn.originalPosition.x &&
+					this.state.characterTurn.position.y === this.state.characterTurn.originalPosition.y
+				) {
+					this.state.characterTurn.actions.walk.state = 'not-in-use'
 
-					return characterType === 'Foe' ? -offsetWidth : offsetWidth
+					if (this.state.characterTurn.actions.hit.state === 'complete') {
+						this.executeAction({ skill: this.state.selectedSkill, targets: [this.state.selectedTargets[0]] })
+						this.state.characterTurn.actions.hit.state = 'not-in-use'
+						this.state.characterTurn.actions.hit.durationMs = 0
+						this.state.selectedTargets.splice(0, 1)
+						this.state.characterDestination = this.state.characterTurn.originalPosition
+
+						const vectorToDestination = new Vector(this.state.characterDestination.x - this.state.characterTurn.position.x, this.state.characterDestination.y - this.state.characterTurn.position.y)
+						// Adjust speed of vector
+						vectorToDestination.x /= 1.5
+						vectorToDestination.y /= 1.5
+	
+						// Set vector to next destination
+						this.state.characterTurn.vector.x = vectorToDestination.x
+						this.state.characterTurn.vector.y = vectorToDestination.y
+						this.state.characterTurn.actions.walk.state = 'in-use'
+					} else {
+						this.state.characterTurn.actions.hit.state = 'in-use'
+					}
 				}
 
+				const getTargetOffset = (character: Character, target?: Character) => {
+					const offsetWidth = 125
+
+					if (!target) return 0
+					if (this.isCurrentCharacter(target)) return 0 // Is this needed; probably not
+					if (this.isFoe(character) && this.isFoe(target)) return -offsetWidth
+					if (this.isPlayer(character) && this.isPlayer(target)) return offsetWidth
+					if (this.isFoe(character) && this.isPlayer(target)) return -offsetWidth
+					if (this.isPlayer(character) && this.isFoe(target)) return offsetWidth
+
+					throw new Error("Something went wrong!")
+				}
+
+				const targetOffset =  getTargetOffset(this.state.characterTurn, this.state.selectedTargets[0])
+
 				if (this.state.characterDestination === null) {
-					this.state.characterDestination = { x: this.state.selectedTargets[0].position.x + getTargetOffset(this.state.characterTurn), y: this.state.selectedTargets[0].position.y }
+					this.state.characterDestination = { x: this.state.selectedTargets[0].position.x + targetOffset, y: this.state.selectedTargets[0].position.y }
 				}
 
 				this.state.characterTurn.position.x += this.state.characterTurn.vector.x * dt
@@ -166,7 +201,7 @@ export class BattleSystem {
 					this.state.characterTurn.actions.walk.state = 'in-use'
 				}
 
-				// Has reached enemy
+				// Has reached target
 				if (
 					this.state.characterTurn.position.x === this.state.characterDestination.x &&
 					this.state.characterTurn.position.y === this.state.characterDestination.y &&
@@ -205,7 +240,7 @@ export class BattleSystem {
 				) {
 					this.state.characterTurn.actions.walk.state === 'not-in-use'
 					if (this.state.selectedTargets[0]) {
-						this.state.characterDestination = { x: this.state.selectedTargets[0].position.x + getTargetOffset(this.state.characterTurn), y: this.state.selectedTargets[0].position.y }
+						this.state.characterDestination = { x: this.state.selectedTargets[0].position.x + targetOffset, y: this.state.selectedTargets[0].position.y }
 					} else { // No more enemies to attack
 						this.state.characterTurn.atkBar = 0
 						this.state = { name: 'PROGRESS_ATB' }
@@ -216,18 +251,15 @@ export class BattleSystem {
 			}
 			case 'CALCULATE_FOE_ACTION': {
 				const selectedSkill = this.state.characterTurn.role.skills[getRandomIntInclusive(0, this.state.characterTurn.role.skills.length - 1)]
-				const numberOfTargets = selectedSkill.numberOfTargets
-				const validTargets = this.battle.active.players.filter((player) => player.stats.hp > 0)
-				let selectedTargets: Character[] = []
+				const selectableTargets = this.getSelectableTargets({
+					battle: this.battle.active,
+					state: this.state,
+					skill: selectedSkill,
+				})
 
-				if (validTargets.length <= numberOfTargets) {
-					selectedTargets = validTargets
-				} else {
-					const shuffledArrayOfTargets = shuffleArray(validTargets)
-					selectedTargets = shuffledArrayOfTargets.slice(0, numberOfTargets)
-				}
-
-				if (selectedTargets.length === 0) throw new Error("Couldn't find any valid targets during foes turn!")
+				const maxNumTargets = Math.min(selectedSkill.numberOfTargets, selectableTargets.length)
+				const shuffledArrayOfTargets = shuffleArray(selectableTargets)
+				const selectedTargets = shuffledArrayOfTargets.slice(0, maxNumTargets)
 
 				this.state = {
 					name: 'ANIMATING_ACTION',
@@ -238,6 +270,18 @@ export class BattleSystem {
 				}
 
 				break
+			}
+			case 'PLAYER_SELECT_TARGET': {
+				const selectableTargets = this.getSelectableTargets({
+					battle: this.battle.active,
+					state: this.state,
+					skill: this.state.selectedSkill,
+				})
+
+				if (this.state.focusedTarget === null) {
+					// Initialize focused target
+					this.state.focusedTarget = selectableTargets[0]
+				}
 			}
 		}
 
@@ -364,7 +408,7 @@ export class BattleSystem {
 									characterTurn: this.state.characterTurn,
 									selectedSkill: this.state.focusedSkill,
 									selectedTargets: [],
-									focusedTarget: this.battle.active.foes[0],
+									focusedTarget: null,
 								}
 
 								break
@@ -374,10 +418,15 @@ export class BattleSystem {
 						break
 					}
 					case 'PLAYER_SELECT_TARGET': {
-						const selectableTargets = [
-							...this.battle.active.players,
-							...this.battle.active.foes,
-						]
+						const selectableTargets = this.getSelectableTargets({
+							battle: this.battle.active,
+							state: this.state,
+							skill: this.state.selectedSkill,
+						})
+
+						if (this.state.focusedTarget === null) {
+							throw new Error("focusedTarget is null when it should be set.")
+						}
 
 						const currentlySelectedTargetIndex = selectableTargets.indexOf(
 							this.state.focusedTarget
@@ -496,7 +545,13 @@ export class BattleSystem {
 							case 'enter': {
 								this.state.selectedTargets.push(this.state.focusedTarget)
 
-								if (this.state.selectedTargets.length >= this.state.selectedSkill.numberOfTargets) {
+								const restOfTargets = this.getSelectableTargets({
+									battle: this.battle.active,
+									state: this.state,
+									skill: this.state.selectedSkill,
+								})
+
+								if (this.state.selectedTargets.length >= this.state.selectedSkill.numberOfTargets || restOfTargets.length === 0) {
 									this.state = {
 										name: 'ANIMATING_ACTION',
 										characterTurn: this.state.characterTurn,
@@ -504,6 +559,8 @@ export class BattleSystem {
 										selectedSkill: this.state.selectedSkill,
 										selectedTargets: this.state.selectedTargets,
 									}
+								} else {
+									this.state.focusedTarget = restOfTargets[0]
 								}
 
 								break
@@ -550,6 +607,88 @@ export class BattleSystem {
 		}
 	}
 
+	getSelectableTargets({ battle, state, skill }: { battle: Battle, state: Extract<State, { characterTurn: Character, selectedTargets: Character[] }>, skill: Skill }) {
+		const selectableTargets: Character[] = []
+
+		if (this.isFoe(state.characterTurn)) {
+			if (skill.validTarget.some((target) => target === 'allies')) {
+				const nonSelectedTargets = battle.foes.filter((foe) => !state.selectedTargets.some((target) => target === foe))
+				
+				selectableTargets.push(...nonSelectedTargets)
+
+			} else if (skill.validTarget.some((target) => target === 'self')) {
+				const self = battle.foes.find(this.isCurrentCharacter)
+				
+				if (!self) throw new Error("Couldn't find current character.")
+
+				selectableTargets.push(self)
+
+			}
+
+			if (skill.validTarget.some((target) => target === 'enemy')) {
+				const nonSelectedTargets = battle.players.filter((player) => !state.selectedTargets.some((target) => target === player))
+
+				selectableTargets.push(...nonSelectedTargets)
+
+			}
+
+			return this.getNonDeadCharacters(selectableTargets)
+
+		} else if (this.isPlayer(state.characterTurn)) {
+			if (skill.validTarget.some((target) => target === 'allies')) {
+				const nonSelectedTargets = battle.players.filter((player) => !state.selectedTargets.some((target) => target === player))
+				
+				selectableTargets.push(...nonSelectedTargets)
+
+			} else if (skill.validTarget.some((target) => target === 'self')) {
+				const self = battle.players.find(this.isCurrentCharacter)
+				
+				if (!self) throw new Error("Couldn't find current character.")
+
+				selectableTargets.push(self)
+
+			}
+
+			if (skill.validTarget.some((target) => target === 'enemy')) {
+				const nonSelectedTargets = battle.foes.filter((foe) => !state.selectedTargets.some((target) => target === foe))
+				
+				selectableTargets.push(...nonSelectedTargets)
+
+			}
+
+			return this.getNonDeadCharacters(selectableTargets)
+
+		}
+
+		throw new Error("Couldn't find any valid targets!")
+	}
+
+	isCurrentCharacter(character: Character) {
+		if ('characterTurn' in this.state && this.state.characterTurn) {
+			return this.state.characterTurn === character
+		}
+		
+		throw new Error("Called #isCurrentCharacter but no characters turn yet!")
+	}
+
+	isFoe(character: Character) {
+		if (!this.battle.active) throw new Error("Called #isFoe but no active battle in play!")
+		return this.battle.active.foes.some((foe) => foe === character)
+	}
+
+	isPlayer(character: Character) {
+		if (!this.battle.active) throw new Error("Called #isPlayer but no active battle in play!")
+		return this.battle.active.players.some((player) => player === character)
+	}
+
+	getNonDeadCharacters(characters: Character[]) {
+		return characters.filter((target) => target.stats.hp > 0)
+	}
+	
+	getPlayableCharacters({ battle }: { battle: Battle }) {
+		return this.getNonDeadCharacters(battle.players)
+	}
+
 	mapToSkillSet(skills: Skill[]): (Skill | null)[][] {
 		const numberOfSkillBoxes =
 			skills.length % skillsPerColumn === 0
@@ -583,6 +722,7 @@ export class BattleSystem {
 			const dmgEffects = target.effects.filter((effect): effect is Damage => effect.type === 'damage')
 			dmgEffects.forEach((dmgEffect) => {
 				target.stats.hp -= dmgEffect.points
+				if (target.stats.hp <= 0) target.actions.die.state = 'in-use'
 			})
 			target.effects = target.effects.filter((effect) => effect.type !== 'damage')
 		})
